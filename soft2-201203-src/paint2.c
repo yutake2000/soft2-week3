@@ -287,6 +287,52 @@ void save_history(const char *filename, History *his)
   fclose(fp);
 }
 
+void load_history(const char *filename, History *his) {
+  const char *default_history_file = "history.txt";
+  if (filename == NULL)
+    filename = default_history_file;
+
+  FILE *fp;
+  if ((fp = fopen(filename, "r")) == NULL) {
+    fprintf(stderr, "error: cannot open %s.\n", filename);
+    return;
+  }
+
+  // コマンド履歴を全削除
+  for (Command *command = his->begin; command != NULL; ) {
+    Command *c = command->next;
+    free(command->str);
+    free(command);
+    command = c;
+  }
+  his->begin = NULL;
+  his->size = 0;
+
+  Command *end = NULL;
+  char *buf = (char*)malloc(sizeof(char) * his->bufsize);
+  while ((fgets(buf, his->bufsize, fp)) != NULL) {
+    //buf[strlen(buf) - 1] = 0; // 改行を除く
+
+    char *str = (char*)malloc(sizeof(char) * his->bufsize);
+    strcpy(str, buf);
+
+    Command *command = (Command*)malloc(sizeof(Command));
+    command->str = str;
+    command->bufsize = strlen(str) + 1;
+    command->next = NULL;
+
+    if (end == NULL) {
+      his->begin = command;
+    } else {
+      end->next = command;
+    }
+    his->size++;
+
+    end = command;
+  }
+
+}
+
 int* read_int_arguments(const int count) {
   int *p = (int*)calloc(count, sizeof(int));
   char **b = (char**)calloc(count, sizeof(char*));
@@ -380,6 +426,23 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     save_history(s, his);
     clear_command(stdout);
     printf("saved as \"%s\"\n",(s==NULL)?"history.txt":s);
+    return COMMAND;
+  }
+
+  if (strcmp(s, "load") == 0) {
+    s = strtok(NULL, " ");
+    load_history(s, his);
+
+    // コマンドをすべて実行する
+    reset_canvas(c);
+    for (Command *com = his->begin; com != NULL; com = com->next) {
+      interpret_command(com->str, his, c);
+      rewind_screen(stdout, 1);
+    }
+
+    clear_command(stdout);
+    printf("loaded \"%s\"\n",(s==NULL)?"history.txt":s);
+
     return COMMAND;
   }
 
