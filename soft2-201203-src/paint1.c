@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <errno.h> // for error catch
 #include <assert.h>
+#include <math.h>
 
 // Structure for canvas
 typedef struct
@@ -254,6 +255,19 @@ void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int
 
 }
 
+void draw_circle(Canvas *c, const int x0, const int y0, const int r) {
+
+  for (int x=0; x<c->width; x++) {
+    for (int y=0; y<c->height; y++) {
+      double dist = sqrt(pow(x-x0, 2) + pow(y - y0, 2));
+      if (r <= dist && dist < r+1) {
+        draw_dot(c, x, y);
+      }
+    }
+  }
+
+}
+
 void save_history(const char *filename, History *his)
 {
   const char *default_history_file = "history.txt";
@@ -344,6 +358,20 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     free(args);
     clear_command(stdout);
     printf("1 rect drawn\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "circle") == 0) {
+    int *args = read_int_arguments(3);
+    if (args == NULL) {
+      return ERROR;
+    }
+
+    draw_circle(c, args[0], args[1], args[2]);
+
+    free(args);
+    clear_command(stdout);
+    printf("1 circle drawn\n");
     return NORMAL;
   }
 
