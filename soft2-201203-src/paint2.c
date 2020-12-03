@@ -287,15 +287,16 @@ void save_history(const char *filename, History *his)
   fclose(fp);
 }
 
-void load_history(const char *filename, History *his) {
+int load_history(const char *filename, History *his) {
   const char *default_history_file = "history.txt";
   if (filename == NULL)
     filename = default_history_file;
 
   FILE *fp;
   if ((fp = fopen(filename, "r")) == NULL) {
-    fprintf(stderr, "error: cannot open %s.\n", filename);
-    return;
+    clear_command(stdout);
+    printf("error: cannot open %s.\n", filename);
+    return 1;
   }
 
   // コマンド履歴を全削除
@@ -331,6 +332,7 @@ void load_history(const char *filename, History *his) {
     end = command;
   }
 
+  return 0;
 }
 
 int* read_int_arguments(const int count) {
@@ -431,7 +433,10 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
   if (strcmp(s, "load") == 0) {
     s = strtok(NULL, " ");
-    load_history(s, his);
+    int result = load_history(s, his);
+    if (result == 1) {
+      return ERROR;
+    }
 
     // コマンドをすべて実行する
     reset_canvas(c);
