@@ -451,6 +451,21 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     return COMMAND;
   }
 
+  if (strcmp(s, "chpen") == 0) {
+    s = strtok(NULL, " ");
+    if (s == NULL) {
+      clear_command(stdout);
+      printf("usage: chpen <character>\n");
+      return ERROR;
+    }
+
+    c->pen = s[0];
+
+    clear_command(stdout);
+    printf("changed to '%c'\n", c->pen);
+    return NORMAL;
+  }
+
   if (strcmp(s, "undo") == 0) {
     reset_canvas(c);
 
