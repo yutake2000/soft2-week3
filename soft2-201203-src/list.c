@@ -1,3 +1,7 @@
+/*
+  ノードのみの連結リストでpop_backを実装
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
