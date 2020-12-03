@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h> // for error catch
+#include <assert.h>
 
 // Structure for canvas
 typedef struct
@@ -13,6 +14,22 @@ typedef struct
   char pen;
 } Canvas;
 
+// 最大履歴と現在位置の情報は持たない
+typedef struct command Command;
+struct command {
+  char *str;
+  size_t bufsize; // このコマンドの長さ + 1 ('\0')
+  Command *next;
+};
+
+// コマンドリストの先頭へのポインタをメンバに持つ構造体としてHistoryを考える。
+// 履歴がない時点ではbegin = NULL となる。
+typedef struct{
+  Command *begin;
+  size_t bufsize; // コマンドの長さの最大値
+} History;
+
+/*
 // Structure for history (2-D array)
 typedef struct
 {
@@ -21,6 +38,7 @@ typedef struct
   size_t hsize;
   char **commands;
 } History;
+*/
 
 // functions for Canvas type
 Canvas *init_canvas(int width, int height, char pen);
@@ -45,6 +63,7 @@ void save_history(const char *filename, History *his);
 int main(int argc, char **argv)
 {
   //for history recording
+  /*
   const int max_history = 5;
   const int bufsize = 1000;
   History his = (History){.max_history = max_history, .bufsize = bufsize, .hsize = 0};
@@ -53,6 +72,9 @@ int main(int argc, char **argv)
   char* tmp = (char*) malloc(his.max_history * his.bufsize * sizeof(char));
   for (int i = 0 ; i < his.max_history ; i++)
     his.commands[i] = tmp + (i * his.bufsize);
+    */
+  History *his = (History*)malloc(sizeof(History));
+  his->bufsize = 1000;
 
   int width;
   int height;
@@ -77,23 +99,46 @@ int main(int argc, char **argv)
   char pen = '*';
 
   FILE *fp;
-  char buf[his.bufsize];
+  char buf[his->bufsize];
   fp = stdout;
   Canvas *c = init_canvas(width,height, pen);
 
   fprintf(fp,"\n"); // required especially for windows env
-  while (his.hsize < his.max_history) {
+  while (1) {
+    /*
     size_t hsize = his.hsize;
     size_t bufsize = his.bufsize;
+    */
+    size_t hsize = 0;
     print_canvas(fp,c);
     printf("%zu > ", hsize);
-    if(fgets(buf, bufsize, stdin) == NULL) break;
+    if(fgets(buf, his->bufsize, stdin) == NULL) break;
 
-    const Result r = interpret_command(buf, &his,c);
+    const Result r = interpret_command(buf, his, c);
     if (r == EXIT) break;   
-    if (r == NORMAL) {
+    if (r == NORMAL) {      
+      /*
       strcpy(his.commands[his.hsize], buf);
       his.hsize++;
+      */
+
+      Command *command = (Command*)malloc(sizeof(Command));
+      int len = strlen(buf);
+      command->bufsize = len + 1;
+      command->str = (char*)malloc(command->bufsize);
+      strcpy(command->str, buf);
+      command->next = NULL;
+
+      if (his->begin == NULL) {
+        his->begin = command;
+      } else {
+        Command *node = his->begin;
+        while (node->next != NULL) {
+          node = node->next;
+        }
+        node->next = command;
+      }
+
     }
 
     rewind_screen(fp,2); // command results
@@ -218,9 +263,13 @@ void save_history(const char *filename, History *his)
     fprintf(stderr, "error: cannot open %s.\n", filename);
     return;
   }
-  
+  /*
   for (int i = 0; i < his->hsize; i++) {
     fprintf(fp, "%s", his->commands[i]);
+  }
+  */
+  for (Command *command = his->begin; command != NULL; command = command->next) {
+    fprintf(fp, "%s", command->str);
   }
 
   fclose(fp);
@@ -230,6 +279,8 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 {
   char buf[his->bufsize];
   strcpy(buf, command);
+
+  assert(strlen(buf) != 0);
   buf[strlen(buf) - 1] = 0; // remove the newline character at the end
 
   const char *s = strtok(buf, " ");
@@ -241,7 +292,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     for (int i = 0 ; i < 4; i++){
       b[i] = strtok(NULL, " ");
       if (b[i] == NULL){
-  clear_command(stdout);
+        clear_command(stdout);
         printf("the number of point is not enough.\n");
         return ERROR;
       }
@@ -250,9 +301,9 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       char *e;
       long v = strtol(b[i],&e, 10);
       if (*e != '\0'){
-  clear_command(stdout);
-  printf("Non-int value is included.\n");
-  return ERROR;
+        clear_command(stdout);
+        printf("Non-int value is included.\n");
+        return ERROR;
       }
       p[i] = (int)v;
     }
@@ -273,14 +324,50 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
   if (strcmp(s, "undo") == 0) {
     reset_canvas(c);
+
+    if (his->begin == NULL) {
+
+      clear_command(stdout);
+      printf("None!\n");
+
+    } else if (his->begin->next == NULL) { // コマンドが1つだけだった場合
+
+      Command *c = his->begin;
+      free(c->str);
+      free(c);
+      his->begin = NULL;
+
+      clear_command(stdout);
+      printf("undo!\n");
+
+    } else {
+
+      for (Command *com = his->begin; com != NULL; com = com->next) {
+        // 最初から実行し直す
+        interpret_command(com->str, his, c);
+        rewind_screen(stdout, 1);
+
+        if (com->next->next == NULL) { // 実行したのが最後から2番目のコマンドなら、次のコマンドを消去して終了
+          free(com->next->str);
+          free(com->next);
+          com->next = NULL;
+          break;
+        }
+
+      }
+
+      clear_command(stdout);
+      printf("undo!\n");
+
+    }
+    /*
     if (his->hsize != 0){
       for (int i = 0; i < his->hsize - 1; i++) {
-  interpret_command(his->commands[i], his, c);
+        interpret_command(his->commands[i], his, c);
       }
       his->hsize--;
     }
-    clear_command(stdout);
-    printf("undo!\n");
+    */
     return COMMAND;
   }
 
