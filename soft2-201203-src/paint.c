@@ -254,6 +254,12 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
   const char *s = strtok(buf, " ");
 
+  if (s == NULL) { // 何も入力されなかった場合
+    clear_command(stdout);
+    printf("none!\n");
+    return UNKNOWN;
+  }
+
   // The first token corresponds to command
   if (strcmp(s, "line") == 0) {
     int p[4] = {0}; // p[0]: x0, p[1]: y0, p[2]: x1, p[3]: x1 
