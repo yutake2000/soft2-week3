@@ -63,15 +63,34 @@ Node *push_back(Node *begin, const char *str)
 Node *pop_back(Node *begin)
 {
   // write an implementation.
+
+  assert(begin != NULL);
+
+  // 要素が1つしかない場合は先頭を削除するのと同じ
+  if (begin->next == NULL) {
+    return pop_front(begin);
+  }
+
+  // 最後から2番目の要素を取得
+  Node *p = begin;
+  while (p->next->next != NULL) {
+    p = p->next;
+  }
+
+  free(p->next->str);
+  free(p->next);
   
+  // 最後から2番目の要素を最後の要素に変更
+  p->next = NULL;
+
   return begin;
 }
 
 
 Node *remove_all(Node *begin)
 {
-  while ((begin = pop_front(begin))) 
-    ; // Repeat pop_front() until the list becomes empty
+  //while ((begin = pop_front(begin))); // Repeat pop_front() until the list becomes empty
+  while ((begin = pop_back(begin))); // Repeat pop_front() until the list becomes empty
   return begin;
 }
 
@@ -82,14 +101,14 @@ int main()
 
   char buf[maxlen];
   while (fgets(buf, maxlen, stdin)) {
-    begin = push_front(begin, buf);
-    //begin = push_back(begin, buf); // Try this instead of push_front()
+    //begin = push_front(begin, buf);
+    begin = push_back(begin, buf); // Try this instead of push_front()
   }
 
-  //begin = pop_front(begin);  // What will happen if you do this?
-  //begin = pop_back(begin);   // What will happen if you do this?
+  begin = pop_front(begin);  // What will happen if you do this?
+  begin = pop_back(begin);   // What will happen if you do this?
  
-  //begin = remove_all(begin); // What will happen if you do this?
+  begin = remove_all(begin); // What will happen if you do this?
 
   for (const Node *p = begin; p != NULL; p = p->next) {
     printf("%s", p->str);
