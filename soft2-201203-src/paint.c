@@ -24,21 +24,11 @@ struct command {
 
 // コマンドリストの先頭へのポインタをメンバに持つ構造体としてHistoryを考える。
 // 履歴がない時点ではbegin = NULL となる。
-typedef struct{
+typedef struct {
   Command *begin;
   size_t bufsize; // コマンドの長さの最大値
+  size_t size; // コマンドの数
 } History;
-
-/*
-// Structure for history (2-D array)
-typedef struct
-{
-  size_t max_history;
-  size_t bufsize;
-  size_t hsize;
-  char **commands;
-} History;
-*/
 
 // functions for Canvas type
 Canvas *init_canvas(int width, int height, char pen);
@@ -62,17 +52,7 @@ void save_history(const char *filename, History *his);
 
 int main(int argc, char **argv)
 {
-  //for history recording
-  /*
-  const int max_history = 5;
-  const int bufsize = 1000;
-  History his = (History){.max_history = max_history, .bufsize = bufsize, .hsize = 0};
 
-  his.commands = (char**)malloc(his.max_history * sizeof(char*));
-  char* tmp = (char*) malloc(his.max_history * his.bufsize * sizeof(char));
-  for (int i = 0 ; i < his.max_history ; i++)
-    his.commands[i] = tmp + (i * his.bufsize);
-    */
   History *his = (History*)malloc(sizeof(History));
   his->bufsize = 1000;
 
@@ -105,22 +85,14 @@ int main(int argc, char **argv)
 
   fprintf(fp,"\n"); // required especially for windows env
   while (1) {
-    /*
-    size_t hsize = his.hsize;
-    size_t bufsize = his.bufsize;
-    */
-    size_t hsize = 0;
+
     print_canvas(fp,c);
-    printf("%zu > ", hsize);
+    printf("%zu > ", his->size);
     if(fgets(buf, his->bufsize, stdin) == NULL) break;
 
     const Result r = interpret_command(buf, his, c);
     if (r == EXIT) break;   
-    if (r == NORMAL) {      
-      /*
-      strcpy(his.commands[his.hsize], buf);
-      his.hsize++;
-      */
+    if (r == NORMAL) {
 
       Command *command = (Command*)malloc(sizeof(Command));
       int len = strlen(buf);
@@ -128,6 +100,8 @@ int main(int argc, char **argv)
       command->str = (char*)malloc(command->bufsize);
       strcpy(command->str, buf);
       command->next = NULL;
+
+      his->size++;
 
       if (his->begin == NULL) {
         his->begin = command;
@@ -147,7 +121,6 @@ int main(int argc, char **argv)
 
   }
 
-  clear_screen(fp);
   free_canvas(c);
   fclose(fp);
 
@@ -263,11 +236,7 @@ void save_history(const char *filename, History *his)
     fprintf(stderr, "error: cannot open %s.\n", filename);
     return;
   }
-  /*
-  for (int i = 0; i < his->hsize; i++) {
-    fprintf(fp, "%s", his->commands[i]);
-  }
-  */
+
   for (Command *command = his->begin; command != NULL; command = command->next) {
     fprintf(fp, "%s", command->str);
   }
@@ -325,17 +294,17 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   if (strcmp(s, "undo") == 0) {
     reset_canvas(c);
 
-    if (his->begin == NULL) {
+    if (his->begin == NULL) { // コマンドが1つもなかった場合
 
       clear_command(stdout);
-      printf("None!\n");
+      printf("none!\n");
 
     } else if (his->begin->next == NULL) { // コマンドが1つだけだった場合
 
-      Command *c = his->begin;
-      free(c->str);
-      free(c);
+      free(his->begin->str);
+      free(his->begin);
       his->begin = NULL;
+      his->size--;
 
       clear_command(stdout);
       printf("undo!\n");
@@ -347,10 +316,12 @@ Result interpret_command(const char *command, History *his, Canvas *c)
         interpret_command(com->str, his, c);
         rewind_screen(stdout, 1);
 
-        if (com->next->next == NULL) { // 実行したのが最後から2番目のコマンドなら、次のコマンドを消去して終了
+        // 実行したのが最後から2番目のコマンドなら、次のコマンドを消去して終了
+        if (com->next->next == NULL) {
           free(com->next->str);
           free(com->next);
           com->next = NULL;
+          his->size--;
           break;
         }
 
@@ -360,14 +331,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       printf("undo!\n");
 
     }
-    /*
-    if (his->hsize != 0){
-      for (int i = 0; i < his->hsize - 1; i++) {
-        interpret_command(his->commands[i], his, c);
-      }
-      his->hsize--;
-    }
-    */
+
     return COMMAND;
   }
 
