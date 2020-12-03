@@ -45,7 +45,12 @@ void clear_screen(FILE *fp);
 typedef enum res{ EXIT, NORMAL, COMMAND, UNKNOWN, ERROR} Result;
 
 int max(const int a, const int b);
+int draw_dot(Canvas *c, const int x, const int y);
 void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1);
+void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height);
+void draw_circle(Canvas *c, const int x0, const int y0, const int r);
+
+int* read_int_arguments(const int count);
 Result interpret_command(const char *command, History *his, Canvas *c);
 void save_history(const char *filename, History *his);
 
@@ -225,6 +230,30 @@ void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1
   }
 }
 
+int draw_dot(Canvas *c, const int x, const int y) {
+  if (x < 0 || c->width <= x) return 1;
+  if (y < 0 || c->height <= y) return 1;
+
+  c->canvas[x][y] = c->pen;
+  return 0;
+}
+
+void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height) {
+
+  // 上下の辺
+  for (int x=x0; x<x0+width; x++) {
+    draw_dot(c, x, y0);
+    draw_dot(c, x, y0+height-1);
+  }
+
+  // 左右の辺
+  for (int y=y0; y<y0+height; y++) {
+    draw_dot(c, x0, y);
+    draw_dot(c, x0+width-1, y);
+  }
+
+}
+
 void save_history(const char *filename, History *his)
 {
   const char *default_history_file = "history.txt";
@@ -242,6 +271,35 @@ void save_history(const char *filename, History *his)
   }
 
   fclose(fp);
+}
+
+int* read_int_arguments(const int count) {
+  int *p = (int*)calloc(count, sizeof(int));
+  char **b = (char**)calloc(count, sizeof(char*));
+
+  for (int i = 0 ; i < count; i++){
+    b[i] = strtok(NULL, " ");
+    if (b[i] == NULL){
+      clear_command(stdout);
+      printf("usage: rect <x> <y> <width> <height>\n");
+      return NULL;
+    }
+  }
+
+  for (int i = 0 ; i < count ; i++){
+    char *e;
+    long v = strtol(b[i],&e, 10);
+    if (*e != '\0'){
+      clear_command(stdout);
+      printf("Non-int value is included.\n");
+      return NULL;
+    }
+    p[i] = (int)v;
+  }
+
+  free(b);
+
+  return p;
 }
 
 Result interpret_command(const char *command, History *his, Canvas *c)
@@ -262,33 +320,33 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
   // The first token corresponds to command
   if (strcmp(s, "line") == 0) {
-    int p[4] = {0}; // p[0]: x0, p[1]: y0, p[2]: x1, p[3]: x1 
-    char *b[4];
-    for (int i = 0 ; i < 4; i++){
-      b[i] = strtok(NULL, " ");
-      if (b[i] == NULL){
-        clear_command(stdout);
-        printf("the number of point is not enough.\n");
-        return ERROR;
-      }
-    }
-    for (int i = 0 ; i < 4 ; i++){
-      char *e;
-      long v = strtol(b[i],&e, 10);
-      if (*e != '\0'){
-        clear_command(stdout);
-        printf("Non-int value is included.\n");
-        return ERROR;
-      }
-      p[i] = (int)v;
+    int *args = read_int_arguments(4);
+    if (args == NULL) {
+      return ERROR;
     }
 
-    draw_line(c,p[0],p[1],p[2],p[3]);
+    draw_line(c, args[0], args[1], args[2], args[3]);
+
+    free(args);
     clear_command(stdout);
     printf("1 line drawn\n");
     return NORMAL;
   }
   
+  if (strcmp(s, "rect") == 0) {
+    int *args = read_int_arguments(4);
+    if (args == NULL) {
+      return ERROR;
+    }
+
+    draw_rect(c, args[0], args[1], args[2], args[3]);
+
+    free(args);
+    clear_command(stdout);
+    printf("1 rect drawn\n");
+    return NORMAL;
+  }
+
   if (strcmp(s, "save") == 0) {
     s = strtok(NULL, " ");
     save_history(s, his);
