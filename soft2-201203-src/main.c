@@ -1,13 +1,3 @@
-/*
-  chpenコマンドを実装
-
-  基本的にはcanvas->penを引数の文字で書き換えるだけ。
-  引数が入力されない場合は使い方を表示するようにした。
-  ただし複数文字が入力された場合は、その最初の文字だけをとるようにした。
-
-  ペンを変更した後にloadコマンドを実行したときに結果が変わらないように、reset_canvasでデフォルトのペンに戻す操作を加えた
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -118,17 +108,17 @@ int main(int argc, char **argv)
       strcpy(command->str, buf);
       command->next = NULL;
 
-      his->size++;
-
-      if (his->begin == NULL) {
+      if (his->size == 0) {
         his->begin = command;
       } else {
         Command *node = his->begin;
-        while (node->next != NULL) {
-          node = node->next;
+        for (int i=0; i < his->size-1; i++) {
+            node = node->next;
         }
         node->next = command;
       }
+
+      his->size++;
 
     }
 
@@ -293,8 +283,11 @@ void save_history(const char *filename, History *his)
     return;
   }
 
-  for (Command *command = his->begin; command != NULL; command = command->next) {
+  // undoで取り消した部分は保存しない
+  Command *command = his->begin;
+  for (int i=0; i < his->size; i++) {
     fprintf(fp, "%s", command->str);
+    command = command->next;
   }
 
   fclose(fp);
@@ -312,7 +305,7 @@ int load_history(const char *filename, History *his) {
     return 1;
   }
 
-  // コマンド履歴を全削除
+  // コマンド履歴を全削除(undoした部分も含むのでNULLになるまでループ)
   for (Command *command = his->begin; command != NULL; ) {
     Command *c = command->next;
     free(command->str);
@@ -325,7 +318,6 @@ int load_history(const char *filename, History *his) {
   Command *end = NULL;
   char *buf = (char*)malloc(sizeof(char) * his->bufsize);
   while ((fgets(buf, his->bufsize, fp)) != NULL) {
-    //buf[strlen(buf) - 1] = 0; // 改行を除く
 
     char *str = (char*)malloc(sizeof(char) * his->bufsize);
     strcpy(str, buf);
@@ -451,7 +443,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
     }
 
-    // コマンドをすべて実行する
+    // コマンドをすべて実行する(undoはされていないのでNULLになるまですべて実行してOK)
     reset_canvas(c);
     for (Command *com = his->begin; com != NULL; com = com->next) {
       interpret_command(com->str, his, c);
@@ -479,19 +471,17 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     return NORMAL;
   }
 
+  // 実際にはコマンドを削除せずに、his->sizeを減らす
   if (strcmp(s, "undo") == 0) {
     reset_canvas(c);
 
-    if (his->begin == NULL) { // コマンドが1つもなかった場合
+    if (his->size == 0) { // コマンドが1つもなかった場合
 
       clear_command(stdout);
       printf("none!\n");
 
-    } else if (his->begin->next == NULL) { // コマンドが1つだけだった場合
+    } else if (his->size == 1) { // コマンドが1つだけだった場合
 
-      free(his->begin->str);
-      free(his->begin);
-      his->begin = NULL;
       his->size--;
 
       clear_command(stdout);
@@ -499,20 +489,15 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
     } else {
 
-      for (Command *com = his->begin; com != NULL; com = com->next) {
-        // 最初から実行し直す
+      his->size--;
+
+      Command *com = his->begin;
+      // 最初から実行し直す
+      for (int i=0; i< his->size; i++) {
         interpret_command(com->str, his, c);
         rewind_screen(stdout, 1);
 
-        // 実行したのが最後から2番目のコマンドなら、次のコマンドを消去して終了
-        if (com->next->next == NULL) {
-          free(com->next->str);
-          free(com->next);
-          com->next = NULL;
-          his->size--;
-          break;
-        }
-
+        com = com->next;
       }
 
       clear_command(stdout);
