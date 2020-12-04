@@ -46,14 +46,15 @@ void clear_screen(FILE *fp);
 typedef enum res{ EXIT, NORMAL, COMMAND, UNKNOWN, ERROR} Result;
 
 int max(const int a, const int b);
-int draw_dot(Canvas *c, const int x, const int y);
+int draw_dot(Canvas *c, const int x, const int y); //(x, y)がキャンバス内なら点を打つ。外なら1を返すのみ。
 void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1);
 void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height);
 void draw_circle(Canvas *c, const int x0, const int y0, const int r);
 
-int* read_int_arguments(const int count);
+int* read_int_arguments(const int count); // countの数だけコマンドの引数を読み込みその配列を返す
 Result interpret_command(const char *command, History *his, Canvas *c);
 void save_history(const char *filename, History *his);
+int load_history(const char *filename, History *his); //返り値はResult
 
 
 int main(int argc, char **argv)
