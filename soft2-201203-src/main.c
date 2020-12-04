@@ -57,6 +57,11 @@ Result interpret_command(const char *command, History *his, Canvas *c);
 void save_history(const char *filename, History *his);
 int load_history(const char *filename, History *his); //返り値はResult
 
+// actualが0ならundoで取り消されていないもののうちの最後、1なら履歴全体で最後のコマンド(なければNULL)を返す
+Command *get_last_command(History *his, const int actual);
+// command以降の履歴をすべて削除する
+void remove_commands(Command *command);
+
 int main(int argc, char **argv)
 {
 
@@ -108,22 +113,13 @@ int main(int argc, char **argv)
       command->str = (char*)malloc(command->bufsize);
       strcpy(command->str, buf);
 
-      // undoで取り消していたコマンドを削除
-      Command *node = his->begin;
-      for (int i=0; node != NULL; i++) {
-        Command *temp = node;
-        node = node->next;
-
-        if (i >= his->size) {
-          free(temp->str);
-          free(temp);
-        } else if (i == his->size - 1) { // 取り消されていない最後のコマンドのあとに追加
-          temp->next = command;
-        }
-      }
-
-      // 履歴がない場合はここで追加
-      if (his->size == 0) {
+      // 履歴に追加
+      Command *node = get_last_command(his, 0);
+      if (node != NULL) {
+        remove_commands(node->next); // undoで取り消されたコマンドをすべて削除
+        node->next = command;
+      } else {
+        remove_commands(his->begin);
         his->begin = command;
       }
 
@@ -314,17 +310,12 @@ int load_history(const char *filename, History *his) {
     return 1;
   }
 
-  // コマンド履歴を全削除(undoした部分も含むのでNULLになるまでループ)
-  for (Command *command = his->begin; command != NULL; ) {
-    Command *c = command->next;
-    free(command->str);
-    free(command);
-    command = c;
-  }
+  // コマンド履歴を全削除
+  remove_commands(his->begin);
   his->begin = NULL;
   his->size = 0;
 
-  Command *end = NULL;
+  Command *end = NULL; // 最後に読み込んだコマンド
   char *buf = (char*)malloc(sizeof(char) * his->bufsize);
   while ((fgets(buf, his->bufsize, fp)) != NULL) {
 
@@ -523,4 +514,44 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   clear_command(stdout);
   printf("error: unknown command.\n");
   return UNKNOWN;
+}
+
+Command *get_last_command(History *his, const int actual) {
+
+  if (actual) {
+
+    if (his->begin == NULL) {
+      return NULL;
+    } else {
+      Command *command = his->begin;
+      while (command->next != NULL) {
+        command = command->next;
+      }
+      return command;
+    }
+
+  } else {
+
+    if (his->size == 0) {
+      return NULL;
+    } else {
+      Command *command = his->begin;
+      for (int i=0; i < his->size-1; i++) {
+        command = command->next;
+      }
+      return command;
+    }
+
+  }
+
+}
+
+void remove_commands(Command *command) {
+  while (command != NULL) {
+    Command *temp = command;
+    command = command->next;
+
+    free(temp->str);
+    free(temp);
+  }
 }
