@@ -474,6 +474,27 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     return COMMAND;
   }
 
+  if (strcmp(s, "redo") == 0) {
+
+    Command *last = get_last_command(his, 0);
+    Command *last_actual = get_last_command(his, 1);
+
+    if (last != last_actual) { // undoされた状態
+      his->size++;
+      last = last->next;
+
+      interpret_command(last->str, his, c);
+      rewind_screen(stdout, 1);
+
+      clear_command(stdout);
+      printf("redo!\n");
+    } else {
+      clear_command(stdout);
+      printf("none!\n");
+    }
+    return COMMAND;
+  }
+
   if (strcmp(s, "quit") == 0) {
     return EXIT;
   }
