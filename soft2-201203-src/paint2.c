@@ -1,3 +1,10 @@
+/*
+  loadコマンドを実装
+
+  今までのコマンド履歴を消去し、読み込んだコマンドを履歴に追加する。
+  その後undo同様にすべてのコマンドを実行する。
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

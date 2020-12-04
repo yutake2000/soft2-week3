@@ -1,3 +1,11 @@
+/*
+  rect, circleコマンドを実装
+
+  どちらもlineと同じように整数の引数を必要とするため、lineの処理で引数を読み込んでいた部分を関数化した。(read_int_arguments)
+  また、キャンバス外に書き込もうとするとエラーになってしまうので、キャンバスを書き換える部分はdraw_dotという関数で行うようにした。
+  これによってdraw_dotの内部でのみ範囲外かどうかを判定すればよくなった。
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
