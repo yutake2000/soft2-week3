@@ -65,7 +65,7 @@ void draw_circle(Canvas *c, const int x0, const int y0, const int r);
 int* read_int_arguments(const int count); // countの数だけコマンドの引数を読み込みその配列を返す
 Result interpret_command(const char *command, History *his, Canvas *c);
 void save_history(const char *filename, History *his);
-int load_history(const char *filename, History *his); //返り値はResult
+int load_history(const char *filename, History *his); //エラー時は1を返す
 
 int main(int argc, char **argv)
 {
