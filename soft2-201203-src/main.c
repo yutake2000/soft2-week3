@@ -101,13 +101,28 @@ int main(int argc, char **argv)
     if (r == EXIT) break;   
     if (r == NORMAL) {
 
+      // Commandインスタンスを作成し入力されたコマンドをコピー
       Command *command = (Command*)malloc(sizeof(Command));
-      int len = strlen(buf);
-      command->bufsize = len + 1;
+      command->bufsize = strlen(buf) + 1;
+      command->next = NULL;
       command->str = (char*)malloc(command->bufsize);
       strcpy(command->str, buf);
-      command->next = NULL;
 
+      // undoで取り消していたコマンドを削除
+      Command *node = his->begin;
+      for (int i=0; node != NULL; i++) {
+        Command *temp = node;
+        node = node->next;
+
+        if (i >= his->size) {
+          free(temp->str);
+          free(temp);
+        } else if (i == his->size - 1) {
+          temp->next = NULL;
+        }
+      }
+
+      // 履歴に追加
       if (his->size == 0) {
         his->begin = command;
       } else {
