@@ -117,20 +117,14 @@ int main(int argc, char **argv)
         if (i >= his->size) {
           free(temp->str);
           free(temp);
-        } else if (i == his->size - 1) {
-          temp->next = NULL;
+        } else if (i == his->size - 1) { // 取り消されていない最後のコマンドのあとに追加
+          temp->next = command;
         }
       }
 
-      // 履歴に追加
+      // 履歴がない場合はここで追加
       if (his->size == 0) {
         his->begin = command;
-      } else {
-        Command *node = his->begin;
-        for (int i=0; i < his->size-1; i++) {
-            node = node->next;
-        }
-        node->next = command;
       }
 
       his->size++;
