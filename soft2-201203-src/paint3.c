@@ -13,6 +13,7 @@ typedef struct
   int height;
   char **canvas;
   char pen;
+  char pen_default;
 } Canvas;
 
 // 最大履歴と現在位置の情報は持たない
@@ -147,6 +148,7 @@ Canvas *init_canvas(int width,int height, char pen)
   }
   
   new->pen = pen;
+  new->pen_default = pen;
   return new;
 }
 
@@ -154,6 +156,7 @@ void reset_canvas(Canvas *c)
 {
   const int width = c->width;
   const int height = c->height;
+  c->pen = c->pen_default;
   memset(c->canvas[0], ' ', width*height*sizeof(char));
 }
 
