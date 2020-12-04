@@ -61,6 +61,8 @@ int load_history(const char *filename, History *his); //返り値はResult
 Command *get_last_command(History *his, const int actual);
 // command以降の履歴をすべて削除する
 void remove_commands(Command *command);
+void push_back_history(History *his, char *str);
+Command *construct_command(char *str);
 
 int main(int argc, char **argv)
 {
@@ -105,26 +107,7 @@ int main(int argc, char **argv)
     const Result r = interpret_command(buf, his, c);
     if (r == EXIT) break;   
     if (r == NORMAL) {
-
-      // Commandインスタンスを作成し入力されたコマンドをコピー
-      Command *command = (Command*)malloc(sizeof(Command));
-      command->bufsize = strlen(buf) + 1;
-      command->next = NULL;
-      command->str = (char*)malloc(command->bufsize);
-      strcpy(command->str, buf);
-
-      // 履歴に追加
-      Command *node = get_last_command(his, 0);
-      if (node != NULL) {
-        remove_commands(node->next); // undoで取り消されたコマンドをすべて削除
-        node->next = command;
-      } else {
-        remove_commands(his->begin);
-        his->begin = command;
-      }
-
-      his->size++;
-
+      push_back_history(his, buf);
     }
 
     rewind_screen(fp,2); // command results
@@ -315,26 +298,9 @@ int load_history(const char *filename, History *his) {
   his->begin = NULL;
   his->size = 0;
 
-  Command *end = NULL; // 最後に読み込んだコマンド
   char *buf = (char*)malloc(sizeof(char) * his->bufsize);
   while ((fgets(buf, his->bufsize, fp)) != NULL) {
-
-    char *str = (char*)malloc(sizeof(char) * his->bufsize);
-    strcpy(str, buf);
-
-    Command *command = (Command*)malloc(sizeof(Command));
-    command->str = str;
-    command->bufsize = strlen(str) + 1;
-    command->next = NULL;
-
-    if (end == NULL) {
-      his->begin = command;
-    } else {
-      end->next = command;
-    }
-    his->size++;
-
-    end = command;
+    push_back_history(his, buf);
   }
 
   return 0;
@@ -554,4 +520,30 @@ void remove_commands(Command *command) {
     free(temp->str);
     free(temp);
   }
+}
+
+void push_back_history(History *his, char *str) {
+  Command *command = construct_command(str);
+
+  Command *node = get_last_command(his, 0);
+  if (node != NULL) {
+    remove_commands(node->next); // undoで取り消されたコマンドをすべて削除
+    node->next = command;
+  } else {
+    remove_commands(his->begin);
+    his->begin = command;
+  }
+
+  his->size++;
+}
+
+Command *construct_command(char *str) {
+
+  Command *command = (Command*)malloc(sizeof(Command));
+  command->bufsize = strlen(str) + 1;
+  command->next = NULL;
+  command->str = (char*)malloc(command->bufsize);
+  strcpy(command->str, str);
+
+  return command;
 }
