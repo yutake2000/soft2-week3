@@ -16,6 +16,7 @@ struct layer {
 
 typedef struct {
   Layer *begin;
+  size_t size;
 } Layer_List;
 
 // Structure for canvas
@@ -114,7 +115,7 @@ int main(int argc, char **argv)
   while (1) {
 
     print_canvas(fp,c);
-    printf("%zu > ", his->size);
+    printf("%zu, %d/%zu > ", his->size, c->layer_index, c->layer_list->size - 1);
     if(fgets(buf, his->bufsize, stdin) == NULL) break;
 
     const Result r = interpret_command(buf, his, c);
@@ -184,60 +185,9 @@ int remove_layer(Canvas *c, int index, int freeing) {
     free_layer(layer);
   }
 
-  return 0;
-}
-
-/*
-  layerはremove_layerでリストから切り離されている前提
-*/
-int insert_layer(Canvas *c, int index, Layer *layer) {
-
-  Layer *next_layer = get_layer(c, index);
-
-  if (index == 0) {
-    c->layer_list->begin = layer;
-    layer->prev = NULL;
-  } else {
-    next_layer->prev->next = layer;
-    layer->prev = next_layer->prev;
-  }
-
-  next_layer->prev = layer;
-  layer->next = next_layer;
+  c->layer_list->size--;
 
   return 0;
-}
-
-int move_layer(Canvas *c, int a, int b) {
-
-  Layer *layer = get_layer(c, a);
-  remove_layer(c, a, 0); // freeはしない
-  insert_layer(c, b, layer);
-
-  return 0;
-}
-
-void swap_layers(Canvas *c, int a, int b) {
-
-  /*
-  Layer *layer1 = get_layer(c, a);
-  Layer *layer2 = get_layer(c, b);
-
-  Layer *prev = layer2->prev;
-  Layer *next = layer2->next;
-
-  layer2->prev = layer1->prev;
-  layer2->next = layer1->next;
-
-  layer1->prev = prev;
-  layer1->next = next;
-
-  if (layer1->prev != NULL) layer1->prev->next = layer1;
-  if (layer1->next != NULL) layer1->next->prev = layer1;
-  if (layer2->prev != NULL) layer2->prev->next = layer2;
-  if (layer2->next != NULL) layer2->next->prev = layer2;
-  */
-
 }
 
 Layer *get_cur_layer(Canvas *c) {
@@ -252,6 +202,48 @@ Layer *get_last_layer(Canvas *c) {
   while (layer->next != NULL) layer = layer->next;
 
   return layer;
+}
+
+/*
+  layerはremove_layerでリストから切り離されている前提
+*/
+int insert_layer(Canvas *c, int index, Layer *layer) {
+
+  if (index == c->layer_list->size) { // 最後に移動する場合
+    Layer *last = get_last_layer(c);
+    last->next = layer;
+
+    layer->prev = last;
+    layer->next = NULL;
+  } else {
+    Layer *next_layer = get_layer(c, index);
+
+    // 前のレイヤーと接続
+    if (index == 0) {
+      c->layer_list->begin = layer;
+      layer->prev = NULL;
+    } else {
+      next_layer->prev->next = layer;
+      layer->prev = next_layer->prev;
+    }
+
+    // 後ろのレイヤーと接続
+    next_layer->prev = layer;
+    layer->next = next_layer;
+  }
+
+  c->layer_list->size++;
+
+  return 0;
+}
+
+int move_layer(Canvas *c, int a, int b) {
+
+  Layer *layer = get_layer(c, a);
+  remove_layer(c, a, 0); // freeはしない
+  insert_layer(c, b, layer);
+
+  return 0;
 }
 
 Layer *construct_layer(int width, int height) {
@@ -278,6 +270,8 @@ void add_layer(Canvas *c) {
 
   last->next = new;
   new->prev = last;
+
+  c->layer_list->size++;
 }
 
 Canvas *init_canvas(int width,int height, char pen)
@@ -287,6 +281,7 @@ Canvas *init_canvas(int width,int height, char pen)
   new->height = height;
   new->layer_list = (Layer_List*)malloc(sizeof(Layer_List));
   new->layer_list->begin = construct_layer(width, height);
+  new->layer_list->size = 1;
   new->layer_index = 0;
   
   new->pen = pen;
@@ -303,6 +298,7 @@ void reset_canvas(Canvas *c)
   c->layer_index = 0;
 
   c->layer_list->begin = construct_layer(width, height);
+  c->layer_list->size = 1;
 }
 
 
@@ -469,7 +465,7 @@ int* read_int_arguments(const int count) {
     b[i] = strtok(NULL, " ");
     if (b[i] == NULL){
       clear_command(stdout);
-      printf("usage: rect <x> <y> <width> <height>\n");
+      printf("too few arguments.\n");
       return NULL;
     }
   }
@@ -654,7 +650,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     return COMMAND;
   }
 
-  if (strcmp(s, "layer") == 0) {
+  if (strcmp(s, "layer") == 0 || strcmp(s, "l") == 0) {
 
     s = strtok(NULL, " ");
 
@@ -673,6 +669,10 @@ Result interpret_command(const char *command, History *his, Canvas *c)
         return ERROR;
       }
       printf("removed!\n");
+    } else if (strcmp(s, "insert") == 0) {
+      int *index = read_int_arguments(1);
+      insert_layer(c, *index, construct_layer(c->width, c->height));
+      printf("inserted\n");
     } else if (strcmp(s, "mv") == 0 || strcmp(s, "move") == 0) {
       int *indices = read_int_arguments(2);
       move_layer(c, indices[0], indices[1]);
