@@ -6,12 +6,21 @@
 #include <assert.h>
 #include <math.h>
 
+typedef struct layer Layer;
+struct layer {
+  char **board;
+  int visible;
+  Layer *next;
+  Layer *prev;
+};
+
 // Structure for canvas
 typedef struct
 {
   int width;
   int height;
-  char **canvas;
+  //char **canvas;
+  Layer *layer;
   char pen;
   char pen_default;
 } Canvas;
@@ -122,18 +131,28 @@ int main(int argc, char **argv)
   return 0;
 }
 
+Layer *construct_layer(int width, int height) {
+  Layer *layer = (Layer*)malloc(sizeof(Layer));
+  layer->next = NULL;
+  layer->prev = NULL;
+  layer->visible = 1;
+  layer->board = (char**)malloc(width * sizeof(char*));
+
+  char *tmp = (char*)malloc(width * height * sizeof(char));
+  memset(tmp, ' ', width * height * sizeof(char));
+  for (int i = 0 ; i < width ; i++){
+    layer->board[i] = tmp + i * height;
+  }
+
+  return layer;
+}
+
 Canvas *init_canvas(int width,int height, char pen)
 {
   Canvas *new = (Canvas *)malloc(sizeof(Canvas));
   new->width = width;
   new->height = height;
-  new->canvas = (char **)malloc(width * sizeof(char *));
-
-  char *tmp = (char *)malloc(width*height*sizeof(char));
-  memset(tmp, ' ', width*height*sizeof(char));
-  for (int i = 0 ; i < width ; i++){
-    new->canvas[i] = tmp + i * height;
-  }
+  new->layer = construct_layer(width, height);
   
   new->pen = pen;
   new->pen_default = pen;
@@ -145,7 +164,7 @@ void reset_canvas(Canvas *c)
   const int width = c->width;
   const int height = c->height;
   c->pen = c->pen_default;
-  memset(c->canvas[0], ' ', width*height*sizeof(char));
+  memset(c->layer->board[0], ' ', width * height * sizeof(char));
 }
 
 
@@ -153,7 +172,7 @@ void print_canvas(FILE *fp, Canvas *c)
 {
   const int height = c->height;
   const int width = c->width;
-  char **canvas = c->canvas;
+  char **board = c->layer->board;
   
   // 上の壁
   fprintf(fp,"+");
@@ -165,7 +184,7 @@ void print_canvas(FILE *fp, Canvas *c)
   for (int y = 0 ; y < height ; y++) {
     fprintf(fp,"|");
     for (int x = 0 ; x < width; x++){
-      const char c = canvas[x][y];
+      const char c = board[x][y];
       fputc(c, fp);
     }
     fprintf(fp,"|\n");
@@ -181,8 +200,8 @@ void print_canvas(FILE *fp, Canvas *c)
 
 void free_canvas(Canvas *c)
 {
-  free(c->canvas[0]); //  for 2-D array free
-  free(c->canvas);
+  free(c->layer->board[0]); //  for 2-D array free
+  free(c->layer->board);
   free(c);
 }
 
@@ -213,12 +232,10 @@ void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1
   char pen = c->pen;
   
   const int n = max(abs(x1 - x0), abs(y1 - y0));
-  c->canvas[x0][y0] = pen;
   for (int i = 1; i <= n; i++) {
     const int x = x0 + i * (x1 - x0) / n;
     const int y = y0 + i * (y1 - y0) / n;
-    if ( (x >= 0) && (x< width) && (y >= 0) && (y < height))
-      c->canvas[x][y] = pen;
+    draw_dot(c, x, y);
   }
 }
 
@@ -226,7 +243,7 @@ int draw_dot(Canvas *c, const int x, const int y) {
   if (x < 0 || c->width <= x) return 1;
   if (y < 0 || c->height <= y) return 1;
 
-  c->canvas[x][y] = c->pen;
+  c->layer->board[x][y] = c->pen;
   return 0;
 }
 
