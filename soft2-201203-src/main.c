@@ -14,13 +14,17 @@ struct layer {
   Layer *prev;
 };
 
+typedef struct {
+  Layer *begin;
+} Layer_List;
+
 // Structure for canvas
 typedef struct
 {
   int width;
   int height;
   int layer_index;
-  Layer *layer;
+  Layer_List *layer_list;
   char pen;
   char pen_default;
 } Canvas;
@@ -131,24 +135,77 @@ int main(int argc, char **argv)
   return 0;
 }
 
+void free_layer(Layer *layer) {
+  free(layer->board[0]);
+  free(layer->board);
+  free(layer);
+}
+
 void free_layers(Canvas *c) {
-  Layer *layer = c->layer->next;
+  Layer *layer = c->layer_list->begin->next; // 最初のレイヤーは除く
 
   while(layer != NULL) {
     Layer *temp = layer;
     layer = layer->next;
 
-    free(temp->board[0]);
-    free(temp->board);
+    free_layer(temp);
   }
 }
 
 Layer *get_layer(Canvas *c, int index) {
-  Layer *layer = c->layer;
+  Layer *layer = c->layer_list->begin;
   for (int i=0; i<index; i++) {
     layer = layer->next;
   }
   return layer;
+}
+
+int remove_layer(Canvas *c, int index) {
+  Layer *layer = get_layer(c, index);
+
+  if (index == 0 && layer->next == NULL) {
+    printf("Can't remove all layers.\n");
+    return 1;
+  }
+
+  if (layer->prev != NULL) {
+    layer->prev->next = layer->next;
+  }
+
+  if (layer->next != NULL) {
+    layer->next->prev = layer->prev;
+  }
+
+  if (index == 0) {
+    c->layer_list->begin = layer->next;
+  }
+
+  free_layer(layer);
+
+  return 0;
+}
+
+void swap_layers(Canvas *c, int a, int b) {
+
+  /*
+  Layer *layer1 = get_layer(c, a);
+  Layer *layer2 = get_layer(c, b);
+
+  Layer *prev = layer2->prev;
+  Layer *next = layer2->next;
+
+  layer2->prev = layer1->prev;
+  layer2->next = layer1->next;
+
+  layer1->prev = prev;
+  layer1->next = next;
+
+  if (layer1->prev != NULL) layer1->prev->next = layer1;
+  if (layer1->next != NULL) layer1->next->prev = layer1;
+  if (layer2->prev != NULL) layer2->prev->next = layer2;
+  if (layer2->next != NULL) layer2->next->prev = layer2;
+  */
+
 }
 
 Layer *cur_layer(Canvas *c) {
@@ -156,8 +213,9 @@ Layer *cur_layer(Canvas *c) {
 }
 
 Layer *get_last_layer(Canvas *c) {
-  Layer *layer = c->layer;
-  if (layer == NULL) return NULL;
+  Layer *layer = c->layer_list->begin;
+
+  assert(layer != NULL);
 
   while (layer->next != NULL) layer = layer->next;
 
@@ -182,6 +240,7 @@ Layer *construct_layer(int width, int height) {
 
 void add_layer(Canvas *c) {
   Layer *last = get_last_layer(c);
+  assert(last != NULL);
 
   Layer *new = construct_layer(c->width, c->height);
 
@@ -194,7 +253,8 @@ Canvas *init_canvas(int width,int height, char pen)
   Canvas *new = (Canvas *)malloc(sizeof(Canvas));
   new->width = width;
   new->height = height;
-  new->layer = construct_layer(width, height);
+  new->layer_list = (Layer_List*)malloc(sizeof(Layer_List));
+  new->layer_list->begin = construct_layer(width, height);
   new->layer_index = 0;
   
   new->pen = pen;
@@ -209,7 +269,7 @@ void reset_canvas(Canvas *c)
   c->pen = c->pen_default;
   free_layers(c);
 
-  memset(c->layer->board[0], ' ', width * height * sizeof(char));
+  memset(get_layer(c, 0)->board[0], ' ', width * height * sizeof(char));
 }
 
 
@@ -246,8 +306,10 @@ void print_canvas(FILE *fp, Canvas *c)
 void free_canvas(Canvas *c)
 {
   free_layers(c);
-  free(c->layer->board[0]); //  for 2-D array free
-  free(c->layer->board);
+  Layer *layer = get_layer(c, 0);
+  free(layer->board[0]); //  for 2-D array free
+  free(layer->board);
+  free(layer);
   free(c);
 }
 
@@ -571,10 +633,21 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     if (strcmp(s, "add") == 0) {
       add_layer(c);
       printf("added!\n");
-    } else if (strcmp(s, "ch") == 0) {
+    } else if (strcmp(s, "ch") == 0 || strcmp(s, "change") == 0) {
       int *index = read_int_arguments(1);
       c->layer_index = *index;
       printf("changed!\n");
+    } else if (strcmp(s, "rm") == 0 || strcmp(s, "remove") == 0) {
+      int *index = read_int_arguments(1);
+      int result = remove_layer(c, *index);
+      if (result == 1) {
+        return ERROR;
+      }
+      printf("removed!\n");
+    } else if (strcmp(s, "swap") == 0) {
+      int *indices = read_int_arguments(2);
+      swap_layers(c, indices[0], indices[1]);
+      printf("swapped\n");
     } else {
       printf("usage: layer [command = add | change]\n");
       return ERROR;
