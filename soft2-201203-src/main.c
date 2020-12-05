@@ -255,9 +255,17 @@ int insert_layer(Canvas *c, int index, Layer *layer) {
 
 int move_layer(Canvas *c, int a, int b) {
 
+  Layer *cur_layer = get_cur_layer(c);
+
   Layer *layer = get_layer(c, a);
   remove_layer(c, a, 0); // freeはしない
   insert_layer(c, b, layer);
+
+  for (int i=0; i<c->layer_list->size; i++) {
+    if (get_layer(c, i) == cur_layer) {
+      c->layer_index = i;
+    }
+  }
 
   return 0;
 }
