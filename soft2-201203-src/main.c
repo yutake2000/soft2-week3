@@ -136,6 +136,26 @@ int main(int argc, char **argv)
   return 0;
 }
 
+Layer *get_layer(Canvas *c, int index) {
+  Layer *layer = c->layer_list->begin;
+  for (int i=0; i<index; i++) {
+    layer = layer->next;
+  }
+  return layer;
+}
+
+void hide_layer(Canvas *c, int index) {
+  get_layer(c, index)->visible = 0;
+}
+
+void show_layer(Canvas *c, int index) {
+  get_layer(c, index)->visible = 1;
+}
+
+void change_layer(Canvas *c, int index) {
+  c->layer_index = index; 
+}
+
 void free_layer(Layer *layer) {
   free(layer->board[0]);
   free(layer->board);
@@ -151,14 +171,6 @@ void free_all_layers(Canvas *c) {
 
     free_layer(temp);
   }
-}
-
-Layer *get_layer(Canvas *c, int index) {
-  Layer *layer = c->layer_list->begin;
-  for (int i=0; i<index; i++) {
-    layer = layer->next;
-  }
-  return layer;
 }
 
 int remove_layer(Canvas *c, int index, int freeing) {
@@ -186,6 +198,10 @@ int remove_layer(Canvas *c, int index, int freeing) {
   }
 
   c->layer_list->size--;
+
+  if (c->layer_index >= c->layer_list->size) { // 最後のレイヤーを消した場合はその一つ前のレイヤーを表示する
+    change_layer(c, c->layer_list->size - 1);
+  }
 
   return 0;
 }
@@ -301,6 +317,13 @@ void reset_canvas(Canvas *c)
   c->layer_list->size = 1;
 }
 
+void print_char(char c, int color, FILE *fp) {
+
+  fprintf(fp, "\e[%dm", color);
+  fputc(c, fp);
+  fprintf(fp, "\e[0m");
+
+}
 
 void print_canvas(FILE *fp, Canvas *c)
 {
@@ -317,9 +340,23 @@ void print_canvas(FILE *fp, Canvas *c)
   // 外壁と内側
   for (int y = 0 ; y < height ; y++) {
     fprintf(fp,"|");
-    for (int x = 0 ; x < width; x++){
-      const char c = board[x][y];
-      fputc(c, fp);
+    for (int x = 0 ; x < width; x++) {
+      char ch = ' ';
+      int is_current_layer = 0;
+      // 番号が大きいレイヤーを上に表示する
+      for (int i=0; i<c->layer_list->size; i++) {
+        Layer *layer = get_layer(c, i);
+        if (layer->visible && layer->board[x][y] != ' ') {
+          ch = layer->board[x][y];
+          is_current_layer = (i == c->layer_index);
+        }
+      }
+      // 現在のレイヤー以外は薄く表示する
+      if (is_current_layer) {
+        print_char(ch, 0, fp);
+      } else {
+        print_char(ch, 2, fp);
+      }
     }
     fprintf(fp,"|\n");
   }
@@ -660,7 +697,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       printf("added!\n");
     } else if (strcmp(s, "ch") == 0 || strcmp(s, "change") == 0) {
       int *index = read_int_arguments(1);
-      c->layer_index = *index;
+      change_layer(c, *index);
       printf("changed!\n");
     } else if (strcmp(s, "rm") == 0 || strcmp(s, "remove") == 0) {
       int *index = read_int_arguments(1);
@@ -676,7 +713,15 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     } else if (strcmp(s, "mv") == 0 || strcmp(s, "move") == 0) {
       int *indices = read_int_arguments(2);
       move_layer(c, indices[0], indices[1]);
-      printf("moved\n");
+      printf("moved!\n");
+    } else if (strcmp(s, "show") == 0) {
+      int *index = read_int_arguments(1);
+      show_layer(c, *index);
+      printf("showed!\n");
+    } else if (strcmp(s, "hide") == 0) {
+      int *index = read_int_arguments(1);
+      hide_layer(c, *index);
+      printf("hidden!\n");
     } else {
       printf("usage: layer [command = add | change]\n");
       return ERROR;
