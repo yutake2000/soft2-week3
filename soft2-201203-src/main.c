@@ -286,8 +286,8 @@ void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1
 }
 
 int draw_dot(Canvas *c, const int x, const int y) {
-  //if (x < 0 || c->width <= x) return 1;
-  //if (y < 0 || c->height <= y) return 1;
+  if (x < 0 || c->width <= x) return 1;
+  if (y < 0 || c->height <= y) return 1;
 
   Layer *layer = cur_layer(c);
   layer->board[x][y] = c->pen;
