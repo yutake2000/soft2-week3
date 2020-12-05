@@ -155,6 +155,15 @@ Layer *cur_layer(Canvas *c) {
   return get_layer(c, c->layer_index);
 }
 
+Layer *get_last_layer(Canvas *c) {
+  Layer *layer = c->layer;
+  if (layer == NULL) return NULL;
+
+  while (layer->next != NULL) layer = layer->next;
+
+  return layer;
+}
+
 Layer *construct_layer(int width, int height) {
   Layer *layer = (Layer*)malloc(sizeof(Layer));
   layer->next = NULL;
@@ -169,6 +178,15 @@ Layer *construct_layer(int width, int height) {
   }
 
   return layer;
+}
+
+void add_layer(Canvas *c) {
+  Layer *last = get_last_layer(c);
+
+  Layer *new = construct_layer(c->width, c->height);
+
+  last->next = new;
+  new->prev = last;
 }
 
 Canvas *init_canvas(int width,int height, char pen)
@@ -199,7 +217,7 @@ void print_canvas(FILE *fp, Canvas *c)
 {
   const int height = c->height;
   const int width = c->width;
-  char **board = c->layer->board;
+  char **board = cur_layer(c)->board;
   
   // 上の壁
   fprintf(fp,"+");
@@ -257,9 +275,9 @@ void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1
 {
   const int width = c->width;
   const int height = c->height;
-  char pen = c->pen;
   
   const int n = max(abs(x1 - x0), abs(y1 - y0));
+  draw_dot(c, x0, y0);
   for (int i = 1; i <= n; i++) {
     const int x = x0 + i * (x1 - x0) / n;
     const int y = y0 + i * (y1 - y0) / n;
@@ -268,8 +286,8 @@ void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1
 }
 
 int draw_dot(Canvas *c, const int x, const int y) {
-  if (x < 0 || c->width <= x) return 1;
-  if (y < 0 || c->height <= y) return 1;
+  //if (x < 0 || c->width <= x) return 1;
+  //if (y < 0 || c->height <= y) return 1;
 
   Layer *layer = cur_layer(c);
   layer->board[x][y] = c->pen;
@@ -543,6 +561,26 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       printf("none!\n");
     }
     return COMMAND;
+  }
+
+  if (strcmp(s, "layer") == 0) {
+
+    s = strtok(NULL, " ");
+
+    clear_command(stdout);
+    if (strcmp(s, "add") == 0) {
+      add_layer(c);
+      printf("added!\n");
+    } else if (strcmp(s, "ch") == 0) {
+      int *index = read_int_arguments(1);
+      c->layer_index = *index;
+      printf("changed!\n");
+    } else {
+      printf("usage: layer [command = add | change]\n");
+      return ERROR;
+    }
+
+    return NORMAL;
   }
 
   if (strcmp(s, "quit") == 0) {
