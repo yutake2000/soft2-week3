@@ -78,6 +78,27 @@ void remove_commands(Command *command);
 void push_back_history(History *his, char *str);
 Command *construct_command(char *str);
 
+Layer *get_layer(Canvas *c, int index);
+Layer *get_cur_layer(Canvas *c);
+Layer *get_last_layer(Canvas *c);
+void hide_layer(Canvas *c, int index);
+void show_layer(Canvas *c, int index);
+void change_layer(Canvas *c, int index);
+// layer_listの最後に空のレイヤーを追加する
+void add_layer(Canvas *c);
+// layerは空のレイヤーか、remove_layerでリストから切り離されているもの
+int insert_layer(Canvas *c, int index, Layer *layer);
+// layer_listからlayerを切り離す
+// メモリも解放する場合はfreeing=1にする
+int remove_layer(Canvas *c, int index, int freeing);
+// a番目のレイヤーをb番目に移動する
+int move_layer(Canvas *c, int a, int b);
+// 空のレイヤーを作る
+Layer *construct_layer(int width, int height);
+void free_layer(Layer *layer);
+void free_all_layers(Canvas *c);
+
+
 int main(int argc, char **argv)
 {
 
@@ -134,168 +155,6 @@ int main(int argc, char **argv)
   fclose(fp);
 
   return 0;
-}
-
-Layer *get_layer(Canvas *c, int index) {
-  Layer *layer = c->layer_list->begin;
-  for (int i=0; i<index; i++) {
-    layer = layer->next;
-  }
-  return layer;
-}
-
-void hide_layer(Canvas *c, int index) {
-  get_layer(c, index)->visible = 0;
-}
-
-void show_layer(Canvas *c, int index) {
-  get_layer(c, index)->visible = 1;
-}
-
-void change_layer(Canvas *c, int index) {
-  c->layer_index = index; 
-}
-
-void free_layer(Layer *layer) {
-  free(layer->board[0]);
-  free(layer->board);
-  free(layer);
-}
-
-void free_all_layers(Canvas *c) {
-  Layer *layer = c->layer_list->begin;
-
-  while(layer != NULL) {
-    Layer *temp = layer;
-    layer = layer->next;
-
-    free_layer(temp);
-  }
-}
-
-int remove_layer(Canvas *c, int index, int freeing) {
-  Layer *layer = get_layer(c, index);
-
-  if (index == 0 && layer->next == NULL) {
-    printf("Can't remove all layers.\n");
-    return 1;
-  }
-
-  if (layer->prev != NULL) {
-    layer->prev->next = layer->next;
-  }
-
-  if (layer->next != NULL) {
-    layer->next->prev = layer->prev;
-  }
-
-  if (index == 0) {
-    c->layer_list->begin = layer->next;
-  }
-
-  if (freeing) {
-    free_layer(layer);
-  }
-
-  c->layer_list->size--;
-
-  if (c->layer_index >= c->layer_list->size) { // 最後のレイヤーを消した場合はその一つ前のレイヤーを表示する
-    change_layer(c, c->layer_list->size - 1);
-  }
-
-  return 0;
-}
-
-Layer *get_cur_layer(Canvas *c) {
-  return get_layer(c, c->layer_index);
-}
-
-Layer *get_last_layer(Canvas *c) {
-  Layer *layer = c->layer_list->begin;
-
-  assert(layer != NULL);
-
-  while (layer->next != NULL) layer = layer->next;
-
-  return layer;
-}
-
-/*
-  layerはremove_layerでリストから切り離されている前提
-*/
-int insert_layer(Canvas *c, int index, Layer *layer) {
-
-  if (index == c->layer_list->size) { // 最後に移動する場合
-    Layer *last = get_last_layer(c);
-    last->next = layer;
-
-    layer->prev = last;
-    layer->next = NULL;
-  } else {
-    Layer *next_layer = get_layer(c, index);
-
-    // 前のレイヤーと接続
-    if (index == 0) {
-      c->layer_list->begin = layer;
-      layer->prev = NULL;
-    } else {
-      next_layer->prev->next = layer;
-      layer->prev = next_layer->prev;
-    }
-
-    // 後ろのレイヤーと接続
-    next_layer->prev = layer;
-    layer->next = next_layer;
-  }
-
-  c->layer_list->size++;
-
-  return 0;
-}
-
-int move_layer(Canvas *c, int a, int b) {
-
-  Layer *cur_layer = get_cur_layer(c);
-
-  Layer *layer = get_layer(c, a);
-  remove_layer(c, a, 0); // freeはしない
-  insert_layer(c, b, layer);
-
-  for (int i=0; i<c->layer_list->size; i++) {
-    if (get_layer(c, i) == cur_layer) {
-      c->layer_index = i;
-    }
-  }
-
-  return 0;
-}
-
-Layer *construct_layer(int width, int height) {
-  Layer *layer = (Layer*)malloc(sizeof(Layer));
-  layer->next = NULL;
-  layer->prev = NULL;
-  layer->visible = 1;
-  layer->board = (char**)malloc(width * sizeof(char*));
-
-  char *tmp = (char*)malloc(width * height * sizeof(char));
-  memset(tmp, ' ', width * height * sizeof(char));
-  for (int i = 0 ; i < width ; i++){
-    layer->board[i] = tmp + i * height;
-  }
-
-  return layer;
-}
-
-void add_layer(Canvas *c) {
-  Layer *last = get_last_layer(c);
-  assert(last != NULL);
-
-  Layer *new = construct_layer(c->width, c->height);
-
-  last->next = new;
-  new->prev = last;
-
-  c->layer_list->size++;
 }
 
 Canvas *init_canvas(int width,int height, char pen)
@@ -810,4 +669,166 @@ Command *construct_command(char *str) {
   strcpy(command->str, str);
 
   return command;
+}
+
+Layer *get_layer(Canvas *c, int index) {
+  Layer *layer = c->layer_list->begin;
+  for (int i=0; i<index; i++) {
+    layer = layer->next;
+  }
+  return layer;
+}
+
+Layer *get_cur_layer(Canvas *c) {
+  return get_layer(c, c->layer_index);
+}
+
+Layer *get_last_layer(Canvas *c) {
+  Layer *layer = c->layer_list->begin;
+
+  assert(layer != NULL);
+
+  while (layer->next != NULL) layer = layer->next;
+
+  return layer;
+}
+
+void hide_layer(Canvas *c, int index) {
+  get_layer(c, index)->visible = 0;
+}
+
+void show_layer(Canvas *c, int index) {
+  get_layer(c, index)->visible = 1;
+}
+
+void change_layer(Canvas *c, int index) {
+  c->layer_index = index; 
+}
+
+Layer *construct_layer(int width, int height) {
+  Layer *layer = (Layer*)malloc(sizeof(Layer));
+  layer->next = NULL;
+  layer->prev = NULL;
+  layer->visible = 1;
+  layer->board = (char**)malloc(width * sizeof(char*));
+
+  char *tmp = (char*)malloc(width * height * sizeof(char));
+  memset(tmp, ' ', width * height * sizeof(char));
+  for (int i = 0 ; i < width ; i++){
+    layer->board[i] = tmp + i * height;
+  }
+
+  return layer;
+}
+
+void add_layer(Canvas *c) {
+  Layer *last = get_last_layer(c);
+  assert(last != NULL);
+
+  Layer *new = construct_layer(c->width, c->height);
+
+  last->next = new;
+  new->prev = last;
+
+  c->layer_list->size++;
+}
+
+int insert_layer(Canvas *c, int index, Layer *layer) {
+
+  if (index == c->layer_list->size) { // 最後に移動する場合
+    Layer *last = get_last_layer(c);
+    last->next = layer;
+
+    layer->prev = last;
+    layer->next = NULL;
+  } else {
+    Layer *next_layer = get_layer(c, index);
+
+    // 前のレイヤーと接続
+    if (index == 0) {
+      c->layer_list->begin = layer;
+      layer->prev = NULL;
+    } else {
+      next_layer->prev->next = layer;
+      layer->prev = next_layer->prev;
+    }
+
+    // 後ろのレイヤーと接続
+    next_layer->prev = layer;
+    layer->next = next_layer;
+  }
+
+  c->layer_list->size++;
+
+  return 0;
+}
+
+int remove_layer(Canvas *c, int index, int freeing) {
+  Layer *layer = get_layer(c, index);
+
+  if (index == 0 && layer->next == NULL) {
+    printf("Can't remove all layers.\n");
+    return 1;
+  }
+
+  if (layer->prev != NULL) {
+    layer->prev->next = layer->next;
+  }
+
+  if (layer->next != NULL) {
+    layer->next->prev = layer->prev;
+  }
+
+  if (index == 0) {
+    c->layer_list->begin = layer->next;
+  }
+
+  if (freeing) { // 一時的にリストから切り離すときはメモリを解放しない
+    free_layer(layer);
+  }
+
+  c->layer_list->size--;
+
+  if (c->layer_index >= c->layer_list->size) { // 最後のレイヤーを消した場合はその一つ前のレイヤーを表示する
+    change_layer(c, c->layer_list->size - 1);
+  }
+
+  return 0;
+}
+
+int move_layer(Canvas *c, int a, int b) {
+
+  Layer *cur_layer = get_cur_layer(c);
+
+  Layer *layer = get_layer(c, a);
+
+  // 一度リストから切り離し挿入する
+  remove_layer(c, a, 0); // freeはしない
+  insert_layer(c, b, layer);
+
+  // 現在表示してるレイヤーがずれないように修正
+  for (int i=0; i<c->layer_list->size; i++) {
+    if (get_layer(c, i) == cur_layer) {
+      c->layer_index = i;
+    }
+  }
+
+  return 0;
+}
+
+void free_layer(Layer *layer) {
+  free(layer->board[0]);
+  free(layer->board);
+  free(layer);
+}
+
+void free_all_layers(Canvas *c) {
+  Layer *layer = c->layer_list->begin;
+
+  while(layer != NULL) {
+    Layer *temp = layer;
+    layer = layer->next;
+
+    free_layer(temp);
+  }
 }
