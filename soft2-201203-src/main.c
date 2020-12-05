@@ -268,8 +268,10 @@ void reset_canvas(Canvas *c)
   const int height = c->height;
   c->pen = c->pen_default;
   free_layers(c);
+  free_layer(get_layer(c, 0));
+  c->layer_index = 0;
 
-  memset(get_layer(c, 0)->board[0], ' ', width * height * sizeof(char));
+  c->layer_list->begin = construct_layer(width, height);
 }
 
 
