@@ -160,7 +160,7 @@ Layer *get_layer(Canvas *c, int index) {
   return layer;
 }
 
-int remove_layer(Canvas *c, int index) {
+int remove_layer(Canvas *c, int index, int freeing) {
   Layer *layer = get_layer(c, index);
 
   if (index == 0 && layer->next == NULL) {
@@ -180,7 +180,39 @@ int remove_layer(Canvas *c, int index) {
     c->layer_list->begin = layer->next;
   }
 
-  free_layer(layer);
+  if (freeing) {
+    free_layer(layer);
+  }
+
+  return 0;
+}
+
+/*
+  layerはremove_layerでリストから切り離されている前提
+*/
+int insert_layer(Canvas *c, int index, Layer *layer) {
+
+  Layer *next_layer = get_layer(c, index);
+
+  if (index == 0) {
+    c->layer_list->begin = layer;
+    layer->prev = NULL;
+  } else {
+    next_layer->prev->next = layer;
+    layer->prev = next_layer->prev;
+  }
+
+  next_layer->prev = layer;
+  layer->next = next_layer;
+
+  return 0;
+}
+
+int move_layer(Canvas *c, int a, int b) {
+
+  Layer *layer = get_layer(c, a);
+  remove_layer(c, a, 0); // freeはしない
+  insert_layer(c, b, layer);
 
   return 0;
 }
@@ -636,15 +668,15 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       printf("changed!\n");
     } else if (strcmp(s, "rm") == 0 || strcmp(s, "remove") == 0) {
       int *index = read_int_arguments(1);
-      int result = remove_layer(c, *index);
+      int result = remove_layer(c, *index, 1); // freeもする
       if (result == 1) {
         return ERROR;
       }
       printf("removed!\n");
-    } else if (strcmp(s, "swap") == 0) {
+    } else if (strcmp(s, "mv") == 0 || strcmp(s, "move") == 0) {
       int *indices = read_int_arguments(2);
-      swap_layers(c, indices[0], indices[1]);
-      printf("swapped\n");
+      move_layer(c, indices[0], indices[1]);
+      printf("moved\n");
     } else {
       printf("usage: layer [command = add | change]\n");
       return ERROR;
