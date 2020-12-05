@@ -141,8 +141,8 @@ void free_layer(Layer *layer) {
   free(layer);
 }
 
-void free_layers(Canvas *c) {
-  Layer *layer = c->layer_list->begin->next; // 最初のレイヤーは除く
+void free_all_layers(Canvas *c) {
+  Layer *layer = c->layer_list->begin;
 
   while(layer != NULL) {
     Layer *temp = layer;
@@ -208,7 +208,7 @@ void swap_layers(Canvas *c, int a, int b) {
 
 }
 
-Layer *cur_layer(Canvas *c) {
+Layer *get_cur_layer(Canvas *c) {
   return get_layer(c, c->layer_index);
 }
 
@@ -267,8 +267,7 @@ void reset_canvas(Canvas *c)
   const int width = c->width;
   const int height = c->height;
   c->pen = c->pen_default;
-  free_layers(c);
-  free_layer(get_layer(c, 0));
+  free_all_layers(c);
   c->layer_index = 0;
 
   c->layer_list->begin = construct_layer(width, height);
@@ -279,7 +278,7 @@ void print_canvas(FILE *fp, Canvas *c)
 {
   const int height = c->height;
   const int width = c->width;
-  char **board = cur_layer(c)->board;
+  char **board = get_cur_layer(c)->board;
   
   // 上の壁
   fprintf(fp,"+");
@@ -307,11 +306,7 @@ void print_canvas(FILE *fp, Canvas *c)
 
 void free_canvas(Canvas *c)
 {
-  free_layers(c);
-  Layer *layer = get_layer(c, 0);
-  free(layer->board[0]); //  for 2-D array free
-  free(layer->board);
-  free(layer);
+  free_all_layers(c);
   free(c);
 }
 
@@ -353,7 +348,7 @@ int draw_dot(Canvas *c, const int x, const int y) {
   if (x < 0 || c->width <= x) return 1;
   if (y < 0 || c->height <= y) return 1;
 
-  Layer *layer = cur_layer(c);
+  Layer *layer = get_cur_layer(c);
   layer->board[x][y] = c->pen;
   return 0;
 }
