@@ -19,7 +19,7 @@ typedef struct
 {
   int width;
   int height;
-  //char **canvas;
+  int layer_index;
   Layer *layer;
   char pen;
   char pen_default;
@@ -131,6 +131,30 @@ int main(int argc, char **argv)
   return 0;
 }
 
+void free_layers(Canvas *c) {
+  Layer *layer = c->layer->next;
+
+  while(layer != NULL) {
+    Layer *temp = layer;
+    layer = layer->next;
+
+    free(temp->board[0]);
+    free(temp->board);
+  }
+}
+
+Layer *get_layer(Canvas *c, int index) {
+  Layer *layer = c->layer;
+  for (int i=0; i<index; i++) {
+    layer = layer->next;
+  }
+  return layer;
+}
+
+Layer *cur_layer(Canvas *c) {
+  return get_layer(c, c->layer_index);
+}
+
 Layer *construct_layer(int width, int height) {
   Layer *layer = (Layer*)malloc(sizeof(Layer));
   layer->next = NULL;
@@ -153,6 +177,7 @@ Canvas *init_canvas(int width,int height, char pen)
   new->width = width;
   new->height = height;
   new->layer = construct_layer(width, height);
+  new->layer_index = 0;
   
   new->pen = pen;
   new->pen_default = pen;
@@ -164,6 +189,8 @@ void reset_canvas(Canvas *c)
   const int width = c->width;
   const int height = c->height;
   c->pen = c->pen_default;
+  free_layers(c);
+
   memset(c->layer->board[0], ' ', width * height * sizeof(char));
 }
 
@@ -200,6 +227,7 @@ void print_canvas(FILE *fp, Canvas *c)
 
 void free_canvas(Canvas *c)
 {
+  free_layers(c);
   free(c->layer->board[0]); //  for 2-D array free
   free(c->layer->board);
   free(c);
@@ -243,7 +271,8 @@ int draw_dot(Canvas *c, const int x, const int y) {
   if (x < 0 || c->width <= x) return 1;
   if (y < 0 || c->height <= y) return 1;
 
-  c->layer->board[x][y] = c->pen;
+  Layer *layer = cur_layer(c);
+  layer->board[x][y] = c->pen;
   return 0;
 }
 
@@ -498,7 +527,11 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
     if (last != last_actual) { // undoされた状態
       his->size++;
-      last = last->next;
+      if (last == NULL) {
+        last = his->begin;
+      } else {
+        last = last->next;
+      }
 
       interpret_command(last->str, his, c);
       rewind_screen(stdout, 1);
