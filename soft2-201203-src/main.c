@@ -10,6 +10,7 @@ typedef struct layer Layer;
 struct layer {
   char **board;
   int **color;
+  int **bgcolor;
   int visible;
   Layer *next;
   Layer *prev;
@@ -187,9 +188,10 @@ void reset_canvas(Canvas *c)
   c->layer_list->size = 1;
 }
 
-void print_char(char c, int color, FILE *fp) {
+void print_char(char c, int color, int bgcolor, FILE *fp) {
 
-  fprintf(fp, "\e[%dm", color);
+  fprintf(fp, "\e[%dm\e[%dm", color, bgcolor);
+  //fprintf(fp, "%d", bgcolor);
   fputc(c, fp);
   fprintf(fp, "\e[0m");
 
@@ -213,23 +215,23 @@ void print_canvas(FILE *fp, Canvas *c)
     for (int x = 0 ; x < width; x++) {
       char ch = ' ';
       int color = 0;
+      int bgcolor = 0;
       int is_current_layer = 0;
       // 番号が大きいレイヤーを上に表示する
       for (int i=0; i<c->layer_list->size; i++) {
         Layer *layer = get_layer(c, i);
-        if (layer->visible && layer->board[x][y] != ' ') {
+        if (layer->visible && !(layer->board[x][y] == ' ' && layer->bgcolor[x][y] == 0)) {
           ch = layer->board[x][y];
           color = layer->color[x][y];
+          bgcolor = layer->bgcolor[x][y];
           is_current_layer = (i == c->layer_index);
         }
       }
       
-      if (ch == 0) { // マーカーの場合
-        print_char(' ', color + 10, fp); // 背景色に変更
-      } else if (is_current_layer) {
-        print_char(ch, color, fp);
+      if (is_current_layer) {
+        print_char(ch, color, bgcolor, fp);
       } else {
-        print_char(ch, 2, fp); // 現在のレイヤー以外は薄く表示する
+        print_char(ch, 2, 0, fp); // 現在のレイヤー以外は薄く表示する
       }
     }
     fprintf(fp,"|\n");
@@ -288,8 +290,15 @@ int draw_dot(Canvas *c, const int x, const int y) {
   if (y < 0 || c->height <= y) return 1;
 
   Layer *layer = get_cur_layer(c);
-  layer->board[x][y] = c->pen;
-  layer->color[x][y] = c->color;
+
+  if (c->pen == 0) { // マーカーの場合
+    layer->board[x][y] = ' ';
+    layer->bgcolor[x][y] = c->color + 10;
+  } else {
+    layer->board[x][y] = c->pen;
+    layer->color[x][y] = c->color;
+  }
+
   return 0;
 }
 
@@ -747,6 +756,7 @@ Layer *construct_layer(int width, int height) {
   layer->visible = 1;
   layer->board = (char**)malloc(width * sizeof(char*));
   layer->color = (int**)malloc(width * sizeof(int*));
+  layer->bgcolor = (int**)malloc(width * sizeof(int*));
 
   char *tmp = (char*)malloc(width * height * sizeof(char));
   memset(tmp, ' ', width * height * sizeof(char));
@@ -758,6 +768,12 @@ Layer *construct_layer(int width, int height) {
   memset(tmp2, ' ', width * height * sizeof(int));
   for (int i = 0 ; i < width ; i++){
     layer->color[i] = tmp2 + i * height;
+  }
+
+  int *tmp3 = (int*)malloc(width * height * sizeof(int));
+  memset(tmp3, ' ', width * height * sizeof(int));
+  for (int i = 0 ; i < width ; i++){
+    layer->bgcolor[i] = tmp3 + i * height;
   }
 
   return layer;
@@ -863,6 +879,8 @@ void free_layer(Layer *layer) {
   free(layer->board);
   free(layer->color[0]);
   free(layer->color);
+  free(layer->bgcolor[0]);
+  free(layer->bgcolor);
   free(layer);
 }
 
