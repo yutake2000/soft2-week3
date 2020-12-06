@@ -58,7 +58,7 @@ void free_canvas(Canvas *c);
 // display functions
 void rewind_screen(FILE *fp,unsigned int line);
 void clear_command(FILE *fp);
-void clear_screen(FILE *fp);
+void clear_screen(FILE *fp); // カーソル以降をすべて消去する
 
 // enum for interpret_command results
 typedef enum res{ EXIT, NORMAL, COMMAND, UNKNOWN, ERROR} Result;
@@ -141,7 +141,19 @@ int main(int argc, char **argv)
   while (1) {
 
     print_canvas(fp,c);
-    printf("%zu, %d/%zu > ", his->size, c->layer_index, c->layer_list->size - 1);
+    printf("Layer %d/%zu | pen ", c->layer_index + 1, c->layer_list->size);
+    if (c->pen == 0) { // マーカーの場合
+      printf("\e[%dm   \e[0m", c->color + 40);
+    } else {
+      printf("\e[%dm%c%c%c\e[0m", c->color + 30, c->pen, c->pen, c->pen);
+    }
+    Command *last = get_last_command(his, 0);
+    if (last != NULL) {
+      printf(" | %s", last->str);
+    } else {
+      printf("\n");
+    }
+    printf("%zu > ", his->size);
     if(fgets(buf, his->bufsize, stdin) == NULL) break;
 
     const Result r = interpret_command(buf, his, c);
@@ -152,7 +164,8 @@ int main(int argc, char **argv)
 
     rewind_screen(fp,2); // command results
     clear_command(fp); // command itself
-    rewind_screen(fp, height+2); // rewind the screen to command input
+    rewind_screen(fp, height+3); // rewind the screen to command input
+    clear_screen(fp);
 
   }
 
@@ -268,7 +281,7 @@ void clear_command(FILE *fp)
 
 void clear_screen(FILE *fp)
 {
-  fprintf(fp, "\e[2J");
+  fprintf(fp, "\e[0J");
 }
 
 int max(const int a, const int b)
@@ -444,14 +457,6 @@ int *read_int_arguments_flex(int *len) {
   return p;
 }
 
-void print_current_pen(Canvas* c) {
-  if (c->pen == 0) { // マーカーの場合
-    printf("changed!  \e[%dm   \e[0m\n", c->color + 40);
-  } else {
-    printf("changed!  \e[%dm%c%c%c\e[0m\n", c->color + 10, c->pen, c->pen, c->pen);
-  }
-}
-
 Result interpret_command(const char *command, History *his, Canvas *c)
 {
   char buf[his->bufsize];
@@ -550,14 +555,14 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     c->pen = s[0];
 
     clear_command(stdout);
-    print_current_pen(c);
+    printf("changed!\n");
     return NORMAL;
   }
 
   if (strcmp(s, "marker") == 0) {
     c->pen = 0;
     clear_command(stdout);
-    print_current_pen(c);
+    printf("changed!\n");
     return NORMAL;
   }
 
@@ -568,7 +573,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     }
     c->color = *color;
     clear_command(stdout);
-    print_current_pen(c);
+    printf("changed!\n");
     return NORMAL;
   }
 
@@ -644,38 +649,41 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       printf("added!\n");
     } else if (strcmp(s, "ch") == 0 || strcmp(s, "change") == 0) {
       int *index = read_int_arguments(1);
-      change_layer(c, *index);
+      change_layer(c, *index - 1);
       printf("changed!\n");
     } else if (strcmp(s, "rm") == 0 || strcmp(s, "remove") == 0) {
       int *index = read_int_arguments(1);
-      int result = remove_layer(c, *index, 1); // freeもする
+      int result = remove_layer(c, *index - 1, 1); // freeもする
       if (result == 1) {
         return ERROR;
       }
       printf("removed!\n");
     } else if (strcmp(s, "insert") == 0) {
       int *index = read_int_arguments(1);
-      insert_layer(c, *index, construct_layer(c->width, c->height));
+      insert_layer(c, *index - 1, construct_layer(c->width, c->height));
       printf("inserted\n");
     } else if (strcmp(s, "mv") == 0 || strcmp(s, "move") == 0) {
       int *indices = read_int_arguments(2);
-      move_layer(c, indices[0], indices[1]);
+      move_layer(c, indices[0] - 1, indices[1] - 1);
       printf("moved!\n");
     } else if (strcmp(s, "show") == 0) {
       int *index = read_int_arguments(1);
-      show_layer(c, *index);
+      show_layer(c, *index - 1);
       printf("showed!\n");
     } else if (strcmp(s, "hide") == 0) {
       int *index = read_int_arguments(1);
-      hide_layer(c, *index);
+      hide_layer(c, *index - 1);
       printf("hidden!\n");
     } else if (strcmp(s, "cp") == 0 || strcmp(s, "copy") == 0) {
       int *index = read_int_arguments(1);
-      copy_layer(c, *index);
+      copy_layer(c, *index - 1);
       printf("copied!\n");
     } else if (strcmp(s, "merge") == 0) {
       int len = 0;
       int *indices = read_int_arguments_flex(&len);
+      for (int i=0; i<len; i++) {
+        indices[i]--;
+      }
       merge_layers(c, len, indices);
       printf("merged!\n");
     } else {
