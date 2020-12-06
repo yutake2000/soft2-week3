@@ -69,12 +69,13 @@ void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1
 void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height);
 void draw_circle(Canvas *c, const int x0, const int y0, const int r);
 
-int* read_int_arguments(const int count); // countの数だけコマンドの引数を読み込みその配列を返す
+int *read_int_arguments(const int count); // countの数だけコマンドの引数を読み込みその配列を返す。
+int *read_int_arguments_flex(int *len); // 可変長引数を読み込み配列を返す。長さをlenに書き込む。
 Result interpret_command(const char *command, History *his, Canvas *c);
 void save_history(const char *filename, History *his);
-int load_history(const char *filename, History *his); //エラー時は1を返す
+int load_history(const char *filename, History *his); //エラー時は1を返す。
 
-// actualが0ならundoで取り消されていないもののうちの最後、1なら履歴全体で最後のコマンド(なければNULL)を返す
+// actualが0ならundoで取り消されていないもののうちの最後、1なら履歴全体で最後のコマンド(なければNULL)を返す。
 Command *get_last_command(History *his, const int actual);
 // command以降の履歴をすべて削除する
 void remove_commands(Command *command);
@@ -87,58 +88,21 @@ Layer *get_last_layer(Canvas *c);
 void hide_layer(Canvas *c, int index);
 void show_layer(Canvas *c, int index);
 void change_layer(Canvas *c, int index);
-// layer_listの最後に空のレイヤーを追加する
+// layer_listの最後に空のレイヤーを追加する。
 void add_layer(Canvas *c);
-// layerは空のレイヤーか、remove_layerでリストから切り離されているもの
+// layerは空のレイヤーか、remove_layerでリストから切り離されているもの。
 int insert_layer(Canvas *c, int index, Layer *layer);
-// layer_listからlayerを切り離す
-// メモリも解放する場合はfreeing=1にする
+// layer_listからlayerを切り離す。
+// メモリも解放する場合はfreeing=1にする。
 int remove_layer(Canvas *c, int index, int freeing);
-// a番目のレイヤーをb番目に移動する
+// a番目のレイヤーをb番目に移動する。
 int move_layer(Canvas *c, int a, int b);
-// 空のレイヤーを作る
+// 空のレイヤーを作る。
 Layer *construct_layer(int width, int height);
 void copy_layer(Canvas *c, int index);
+void merge_layers(Canvas *c, int len, int indices[]);
 void free_layer(Layer *layer);
 void free_all_layers(Canvas *c);
-
-void merge_layers(Canvas *c, int len, int indices[]) {
-
-  // バブルソート
-  for (int i=len; i>0; i--) {
-    for (int j=0; j<i-1; j++) {
-      if (indices[j] > indices[j+1]) {
-        int temp = indices[j];
-        indices[j] = indices[j+1];
-        indices[j+1] = temp;
-      }
-    }
-  }
-
-  // 一番下のレイヤーに上のレイヤーを上書きしていく
-  Layer *base_layer = get_layer(c, indices[0]);
-  for (int x=0; x<c->width; x++) {
-    for (int y=0; y<c->height; y++) {
-      for (int i=1; i<len; i++) {
-        Layer *layer = get_layer(c, indices[i]);
-        if (layer->board[x][y] != 0) {
-          base_layer->board[x][y] = layer->board[x][y];
-          base_layer->color[x][y] = layer->color[x][y];
-          if (layer->bgcolor[x][y] != 0) {
-            base_layer->bgcolor[x][y] = layer->bgcolor[x][y];
-          }
-        }
-      }
-    }
-  }
-
-  // 一番下以外のレイヤーを削除
-  for (int i=1; i<len; i++) {
-    int index = indices[i] - (i-1); // 下のレイヤーが削除されるたびに上のレイヤーの番号が下がっていく
-    remove_layer(c, index, 1); // freeもする
-  }
-
-}
 
 int main(int argc, char **argv)
 {
@@ -307,23 +271,9 @@ void clear_screen(FILE *fp)
   fprintf(fp, "\e[2J");
 }
 
-
 int max(const int a, const int b)
 {
   return (a > b) ? a : b;
-}
-void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1)
-{
-  const int width = c->width;
-  const int height = c->height;
-  
-  const int n = max(abs(x1 - x0), abs(y1 - y0));
-  draw_dot(c, x0, y0);
-  for (int i = 1; i <= n; i++) {
-    const int x = x0 + i * (x1 - x0) / n;
-    const int y = y0 + i * (y1 - y0) / n;
-    draw_dot(c, x, y);
-  }
 }
 
 int draw_dot(Canvas *c, const int x, const int y) {
@@ -341,6 +291,20 @@ int draw_dot(Canvas *c, const int x, const int y) {
   }
 
   return 0;
+}
+
+void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1)
+{
+  const int width = c->width;
+  const int height = c->height;
+  
+  const int n = max(abs(x1 - x0), abs(y1 - y0));
+  draw_dot(c, x0, y0);
+  for (int i = 1; i <= n; i++) {
+    const int x = x0 + i * (x1 - x0) / n;
+    const int y = y0 + i * (y1 - y0) / n;
+    draw_dot(c, x, y);
+  }
 }
 
 void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height) {
@@ -882,6 +846,44 @@ void copy_layer(Canvas *c, int index) {
 
 }
 
+void merge_layers(Canvas *c, int len, int indices[]) {
+
+  // バブルソート
+  for (int i=len; i>0; i--) {
+    for (int j=0; j<i-1; j++) {
+      if (indices[j] > indices[j+1]) {
+        int temp = indices[j];
+        indices[j] = indices[j+1];
+        indices[j+1] = temp;
+      }
+    }
+  }
+
+  // 一番下のレイヤーに上のレイヤーを上書きしていく
+  Layer *base_layer = get_layer(c, indices[0]);
+  for (int x=0; x<c->width; x++) {
+    for (int y=0; y<c->height; y++) {
+      for (int i=1; i<len; i++) {
+        Layer *layer = get_layer(c, indices[i]);
+        if (layer->board[x][y] != 0) {
+          base_layer->board[x][y] = layer->board[x][y];
+          base_layer->color[x][y] = layer->color[x][y];
+          if (layer->bgcolor[x][y] != 0) {
+            base_layer->bgcolor[x][y] = layer->bgcolor[x][y];
+          }
+        }
+      }
+    }
+  }
+
+  // 一番下以外のレイヤーを削除
+  for (int i=1; i<len; i++) {
+    int index = indices[i] - (i-1); // 下のレイヤーが削除されるたびに上のレイヤーの番号が下がっていく
+    remove_layer(c, index, 1); // freeもする
+  }
+}
+
+
 void add_layer(Canvas *c) {
   Layer *last = get_last_layer(c);
   assert(last != NULL);
@@ -958,9 +960,7 @@ int remove_layer(Canvas *c, int index, int freeing) {
 }
 
 int move_layer(Canvas *c, int a, int b) {
-
   Layer *cur_layer = get_cur_layer(c);
-
   Layer *layer = get_layer(c, a);
 
   // 一度リストから切り離し挿入する
