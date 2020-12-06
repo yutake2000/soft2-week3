@@ -124,7 +124,9 @@ void merge_layers(Canvas *c, int len, int indices[]) {
         if (layer->board[x][y] != 0) {
           base_layer->board[x][y] = layer->board[x][y];
           base_layer->color[x][y] = layer->color[x][y];
-          base_layer->bgcolor[x][y] = layer->bgcolor[x][y];
+          if (layer->bgcolor[x][y] != 0) {
+            base_layer->bgcolor[x][y] = layer->bgcolor[x][y];
+          }
         }
       }
     }
@@ -132,7 +134,8 @@ void merge_layers(Canvas *c, int len, int indices[]) {
 
   // 一番下以外のレイヤーを削除
   for (int i=1; i<len; i++) {
-    remove_layer(c, indices[i], 1); // freeもする
+    int index = indices[i] - (i-1); // 下のレイヤーが削除されるたびに上のレイヤーの番号が下がっていく
+    remove_layer(c, index, 1); // freeもする
   }
 
 }
@@ -416,7 +419,7 @@ int load_history(const char *filename, History *his) {
   return 0;
 }
 
-int* read_int_arguments(const int count) {
+int *read_int_arguments(const int count) {
   int *p = (int*)calloc(count, sizeof(int));
   char **b = (char**)calloc(count, sizeof(char*));
 
@@ -428,6 +431,38 @@ int* read_int_arguments(const int count) {
       return NULL;
     }
   }
+
+  for (int i = 0 ; i < count ; i++){
+    char *e;
+    long v = strtol(b[i],&e, 10);
+    if (*e != '\0'){
+      clear_command(stdout);
+      printf("Non-int value is included.\n");
+      return NULL;
+    }
+    p[i] = (int)v;
+  }
+
+  free(b);
+
+  return p;
+}
+
+int *read_int_arguments_flex(int *len) {
+
+  char **b = (char**)calloc(16, sizeof(char*));
+
+  int count = 0;
+  while(1) {
+    b[count] = strtok(NULL, " ");
+    if (b[count] == NULL) {
+      break;
+    }
+    count++;
+  }
+
+  *len = count;
+  int *p = (int*)calloc(count, sizeof(int));
 
   for (int i = 0 ; i < count ; i++){
     char *e;
@@ -673,9 +708,12 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     } else if (strcmp(s, "cp") == 0 || strcmp(s, "copy") == 0) {
       int *index = read_int_arguments(1);
       copy_layer(c, *index);
+      printf("copied!\n");
     } else if (strcmp(s, "merge") == 0) {
-      int *indices = read_int_arguments(2);
-      merge_layers(c, 2, indices);
+      int len = 0;
+      int *indices = read_int_arguments_flex(&len);
+      merge_layers(c, len, indices);
+      printf("merged!\n");
     } else {
       printf("usage: layer [command = add | change]\n");
       return ERROR;
