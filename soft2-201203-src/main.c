@@ -190,8 +190,8 @@ void reset_canvas(Canvas *c)
 
 void print_char(char c, int color, int bgcolor, FILE *fp) {
 
-  fprintf(fp, "\e[%dm\e[%dm", color, bgcolor);
-  //fprintf(fp, "%d", bgcolor);
+  fprintf(fp, "\e[%dm", color);
+  if (bgcolor != 0) fprintf(fp, "\e[%dm", bgcolor);
   fputc(c, fp);
   fprintf(fp, "\e[0m");
 
@@ -220,7 +220,7 @@ void print_canvas(FILE *fp, Canvas *c)
       // 番号が大きいレイヤーを上に表示する
       for (int i=0; i<c->layer_list->size; i++) {
         Layer *layer = get_layer(c, i);
-        if (layer->visible && !(layer->board[x][y] == ' ' && layer->bgcolor[x][y] == 0)) {
+        if (layer->visible && layer->board[x][y] != 0) {
           ch = layer->board[x][y];
           color = layer->color[x][y];
           bgcolor = layer->bgcolor[x][y];
@@ -633,6 +633,8 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       int *index = read_int_arguments(1);
       hide_layer(c, *index);
       printf("hidden!\n");
+    } else if (strcmp(s, "cp") == 0 || strcmp(s, "copy") == 0) {
+
     } else {
       printf("usage: layer [command = add | change]\n");
       return ERROR;
@@ -759,19 +761,19 @@ Layer *construct_layer(int width, int height) {
   layer->bgcolor = (int**)malloc(width * sizeof(int*));
 
   char *tmp = (char*)malloc(width * height * sizeof(char));
-  memset(tmp, ' ', width * height * sizeof(char));
+  memset(tmp, 0, width * height * sizeof(char));
   for (int i = 0 ; i < width ; i++){
     layer->board[i] = tmp + i * height;
   }
 
   int *tmp2 = (int*)malloc(width * height * sizeof(int));
-  memset(tmp2, ' ', width * height * sizeof(int));
+  memset(tmp2, 0, width * height * sizeof(int));
   for (int i = 0 ; i < width ; i++){
     layer->color[i] = tmp2 + i * height;
   }
 
   int *tmp3 = (int*)malloc(width * height * sizeof(int));
-  memset(tmp3, ' ', width * height * sizeof(int));
+  memset(tmp3, 0, width * height * sizeof(int));
   for (int i = 0 ; i < width ; i++){
     layer->bgcolor[i] = tmp3 + i * height;
   }
