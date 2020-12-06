@@ -100,11 +100,6 @@ Layer *construct_layer(int width, int height);
 void free_layer(Layer *layer);
 void free_all_layers(Canvas *c);
 
-void change_color(Canvas *c, int color) {
-
-}
-
-
 int main(int argc, char **argv)
 {
 
@@ -217,20 +212,24 @@ void print_canvas(FILE *fp, Canvas *c)
     fprintf(fp,"|");
     for (int x = 0 ; x < width; x++) {
       char ch = ' ';
+      int color = 0;
       int is_current_layer = 0;
       // 番号が大きいレイヤーを上に表示する
       for (int i=0; i<c->layer_list->size; i++) {
         Layer *layer = get_layer(c, i);
         if (layer->visible && layer->board[x][y] != ' ') {
           ch = layer->board[x][y];
+          color = layer->color[x][y];
           is_current_layer = (i == c->layer_index);
         }
       }
-      // 現在のレイヤー以外は薄く表示する
-      if (is_current_layer) {
-        print_char(ch, 0, fp);
+      
+      if (ch == 0) { // マーカーの場合
+        print_char(' ', color + 10, fp); // 背景色に変更
+      } else if (is_current_layer) {
+        print_char(ch, color, fp);
       } else {
-        print_char(ch, 2, fp);
+        print_char(ch, 2, fp); // 現在のレイヤー以外は薄く表示する
       }
     }
     fprintf(fp,"|\n");
@@ -290,6 +289,7 @@ int draw_dot(Canvas *c, const int x, const int y) {
 
   Layer *layer = get_cur_layer(c);
   layer->board[x][y] = c->pen;
+  layer->color[x][y] = c->color;
   return 0;
 }
 
@@ -398,6 +398,14 @@ int* read_int_arguments(const int count) {
   return p;
 }
 
+void print_current_pen(Canvas* c) {
+  if (c->pen == 0) { // マーカーの場合
+    printf("changed!  \e[%dm   \e[0m\n", c->color+10);
+  } else {
+    printf("changed!  \e[%dm%c%c%c\e[0m\n", c->color, c->pen, c->pen, c->pen);
+  }
+}
+
 Result interpret_command(const char *command, History *his, Canvas *c)
 {
   char buf[his->bufsize];
@@ -496,7 +504,26 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     c->pen = s[0];
 
     clear_command(stdout);
-    printf("changed to '%c'\n", c->pen);
+    print_current_pen(c);
+    return NORMAL;
+  }
+
+  if (strcmp(s, "marker") == 0) {
+    c->pen = 0;
+    if (c->color == 0) c->color = 30; // デフォルトは黒
+    clear_command(stdout);
+    print_current_pen(c);
+    return NORMAL;
+  }
+
+  if (strcmp(s, "color") == 0) {
+    int *color = read_int_arguments(1);
+    if (color == NULL) {
+      return ERROR;
+    }
+    c->color = *color + 30;
+    clear_command(stdout);
+    print_current_pen(c);
     return NORMAL;
   }
 
