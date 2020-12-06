@@ -9,9 +9,9 @@
 typedef struct layer Layer;
 struct layer {
   char **board;
-  int **color;
-  int **bgcolor;
-  int visible;
+  int **color; // 30-37
+  int **bgcolor; // 40-47
+  int visible; // 表示する場合は1
   Layer *next;
   Layer *prev;
 };
@@ -30,7 +30,7 @@ typedef struct
   Layer_List *layer_list;
   char pen;
   char pen_default;
-  int color;
+  int color; // 0-7
 } Canvas;
 
 // 最大履歴と現在位置の情報は持たない
@@ -98,30 +98,9 @@ int remove_layer(Canvas *c, int index, int freeing);
 int move_layer(Canvas *c, int a, int b);
 // 空のレイヤーを作る
 Layer *construct_layer(int width, int height);
+void copy_layer(Canvas *c, int index);
 void free_layer(Layer *layer);
 void free_all_layers(Canvas *c);
-
-void copy_layer(Canvas *c, int index) {
-
-  const int width = c->width;
-  const int height = c->height;
-
-  Layer *layer = get_layer(c, index);
-  Layer *new_layer = construct_layer(width, height);
-
-  for (int i=0; i<width; i++) {
-    for (int j=0; j<height; j++) {
-      new_layer->board[i][j] = layer->board[i][j];
-      new_layer->color[i][j] = layer->color[i][j];
-      new_layer->bgcolor[i][j] = layer->bgcolor[i][j];
-    }
-  }
-
-  new_layer->visible = 1;
-
-  insert_layer(c, c->layer_list->size, new_layer);
-
-}
 
 int main(int argc, char **argv)
 {
@@ -317,10 +296,10 @@ int draw_dot(Canvas *c, const int x, const int y) {
 
   if (c->pen == 0) { // マーカーの場合
     layer->board[x][y] = ' ';
-    layer->bgcolor[x][y] = c->color + 10;
+    layer->bgcolor[x][y] = c->color + 40; // \e[40mからが背景色指定
   } else {
     layer->board[x][y] = c->pen;
-    layer->color[x][y] = c->color;
+    layer->color[x][y] = c->color + 30; // \e[30mからが文字色指定
   }
 
   return 0;
@@ -543,7 +522,6 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
   if (strcmp(s, "marker") == 0) {
     c->pen = 0;
-    if (c->color == 0) c->color = 30; // デフォルトは黒
     clear_command(stdout);
     print_current_pen(c);
     return NORMAL;
@@ -554,7 +532,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     if (color == NULL) {
       return ERROR;
     }
-    c->color = *color + 30;
+    c->color = *color;
     clear_command(stdout);
     print_current_pen(c);
     return NORMAL;
@@ -804,6 +782,28 @@ Layer *construct_layer(int width, int height) {
   }
 
   return layer;
+}
+
+void copy_layer(Canvas *c, int index) {
+
+  const int width = c->width;
+  const int height = c->height;
+
+  Layer *layer = get_layer(c, index);
+  Layer *new_layer = construct_layer(width, height);
+
+  for (int i=0; i<width; i++) {
+    for (int j=0; j<height; j++) {
+      new_layer->board[i][j] = layer->board[i][j];
+      new_layer->color[i][j] = layer->color[i][j];
+      new_layer->bgcolor[i][j] = layer->bgcolor[i][j];
+    }
+  }
+
+  new_layer->visible = 1;
+
+  insert_layer(c, c->layer_list->size, new_layer);
+
 }
 
 void add_layer(Canvas *c) {
