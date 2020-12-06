@@ -9,6 +9,7 @@
 typedef struct layer Layer;
 struct layer {
   char **board;
+  int **color;
   int visible;
   Layer *next;
   Layer *prev;
@@ -28,6 +29,7 @@ typedef struct
   Layer_List *layer_list;
   char pen;
   char pen_default;
+  int color;
 } Canvas;
 
 // 最大履歴と現在位置の情報は持たない
@@ -97,6 +99,10 @@ int move_layer(Canvas *c, int a, int b);
 Layer *construct_layer(int width, int height);
 void free_layer(Layer *layer);
 void free_all_layers(Canvas *c);
+
+void change_color(Canvas *c, int color) {
+
+}
 
 
 int main(int argc, char **argv)
@@ -169,6 +175,7 @@ Canvas *init_canvas(int width,int height, char pen)
   
   new->pen = pen;
   new->pen_default = pen;
+  new->color = 0;
   return new;
 }
 
@@ -177,6 +184,7 @@ void reset_canvas(Canvas *c)
   const int width = c->width;
   const int height = c->height;
   c->pen = c->pen_default;
+  c->color = 0;
   free_all_layers(c);
   c->layer_index = 0;
 
@@ -711,11 +719,18 @@ Layer *construct_layer(int width, int height) {
   layer->prev = NULL;
   layer->visible = 1;
   layer->board = (char**)malloc(width * sizeof(char*));
+  layer->color = (int**)malloc(width * sizeof(int*));
 
   char *tmp = (char*)malloc(width * height * sizeof(char));
   memset(tmp, ' ', width * height * sizeof(char));
   for (int i = 0 ; i < width ; i++){
     layer->board[i] = tmp + i * height;
+  }
+
+  int *tmp2 = (int*)malloc(width * height * sizeof(int));
+  memset(tmp2, ' ', width * height * sizeof(int));
+  for (int i = 0 ; i < width ; i++){
+    layer->color[i] = tmp2 + i * height;
   }
 
   return layer;
@@ -819,6 +834,8 @@ int move_layer(Canvas *c, int a, int b) {
 void free_layer(Layer *layer) {
   free(layer->board[0]);
   free(layer->board);
+  free(layer->color[0]);
+  free(layer->color);
   free(layer);
 }
 
