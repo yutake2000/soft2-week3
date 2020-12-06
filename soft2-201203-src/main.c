@@ -101,6 +101,28 @@ Layer *construct_layer(int width, int height);
 void free_layer(Layer *layer);
 void free_all_layers(Canvas *c);
 
+void copy_layer(Canvas *c, int index) {
+
+  const int width = c->width;
+  const int height = c->height;
+
+  Layer *layer = get_layer(c, index);
+  Layer *new_layer = construct_layer(width, height);
+
+  for (int i=0; i<width; i++) {
+    for (int j=0; j<height; j++) {
+      new_layer->board[i][j] = layer->board[i][j];
+      new_layer->color[i][j] = layer->color[i][j];
+      new_layer->bgcolor[i][j] = layer->bgcolor[i][j];
+    }
+  }
+
+  new_layer->visible = 1;
+
+  insert_layer(c, c->layer_list->size, new_layer);
+
+}
+
 int main(int argc, char **argv)
 {
 
@@ -191,7 +213,9 @@ void reset_canvas(Canvas *c)
 void print_char(char c, int color, int bgcolor, FILE *fp) {
 
   fprintf(fp, "\e[%dm", color);
-  if (bgcolor != 0) fprintf(fp, "\e[%dm", bgcolor);
+  if (bgcolor != 0) {
+    fprintf(fp, "\e[%dm", bgcolor);
+  }
   fputc(c, fp);
   fprintf(fp, "\e[0m");
 
@@ -634,7 +658,8 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       hide_layer(c, *index);
       printf("hidden!\n");
     } else if (strcmp(s, "cp") == 0 || strcmp(s, "copy") == 0) {
-
+      int *index = read_int_arguments(1);
+      copy_layer(c, *index);
     } else {
       printf("usage: layer [command = add | change]\n");
       return ERROR;
