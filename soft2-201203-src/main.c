@@ -102,6 +102,41 @@ void copy_layer(Canvas *c, int index);
 void free_layer(Layer *layer);
 void free_all_layers(Canvas *c);
 
+void merge_layers(Canvas *c, int len, int indices[]) {
+
+  // バブルソート
+  for (int i=len; i>0; i--) {
+    for (int j=0; j<i-1; j++) {
+      if (indices[j] > indices[j+1]) {
+        int temp = indices[j];
+        indices[j] = indices[j+1];
+        indices[j+1] = temp;
+      }
+    }
+  }
+
+  // 一番下のレイヤーに上のレイヤーを上書きしていく
+  Layer *base_layer = get_layer(c, indices[0]);
+  for (int x=0; x<c->width; x++) {
+    for (int y=0; y<c->height; y++) {
+      for (int i=1; i<len; i++) {
+        Layer *layer = get_layer(c, indices[i]);
+        if (layer->board[x][y] != 0) {
+          base_layer->board[x][y] = layer->board[x][y];
+          base_layer->color[x][y] = layer->color[x][y];
+          base_layer->bgcolor[x][y] = layer->bgcolor[x][y];
+        }
+      }
+    }
+  }
+
+  // 一番下以外のレイヤーを削除
+  for (int i=1; i<len; i++) {
+    remove_layer(c, indices[i], 1); // freeもする
+  }
+
+}
+
 int main(int argc, char **argv)
 {
 
@@ -412,9 +447,9 @@ int* read_int_arguments(const int count) {
 
 void print_current_pen(Canvas* c) {
   if (c->pen == 0) { // マーカーの場合
-    printf("changed!  \e[%dm   \e[0m\n", c->color+10);
+    printf("changed!  \e[%dm   \e[0m\n", c->color + 40);
   } else {
-    printf("changed!  \e[%dm%c%c%c\e[0m\n", c->color, c->pen, c->pen, c->pen);
+    printf("changed!  \e[%dm%c%c%c\e[0m\n", c->color + 10, c->pen, c->pen, c->pen);
   }
 }
 
@@ -638,6 +673,9 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     } else if (strcmp(s, "cp") == 0 || strcmp(s, "copy") == 0) {
       int *index = read_int_arguments(1);
       copy_layer(c, *index);
+    } else if (strcmp(s, "merge") == 0) {
+      int *indices = read_int_arguments(2);
+      merge_layers(c, 2, indices);
     } else {
       printf("usage: layer [command = add | change]\n");
       return ERROR;
