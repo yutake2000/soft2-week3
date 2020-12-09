@@ -27,6 +27,8 @@ typedef struct
 {
   int width;
   int height;
+  int width_default;
+  int height_default;
   int layer_index;
   Layer_List *layer_list;
   char pen;
@@ -193,6 +195,8 @@ Canvas *init_canvas(int width,int height, char pen)
   Canvas *new = (Canvas *)malloc(sizeof(Canvas));
   new->width = width;
   new->height = height;
+  new->width_default = width;
+  new->height_default = height;
   new->layer_list = (Layer_List*)malloc(sizeof(Layer_List));
   new->layer_list->begin = construct_layer(width, height);
   new->layer_list->size = 1;
@@ -206,8 +210,8 @@ Canvas *init_canvas(int width,int height, char pen)
 
 void reset_canvas(Canvas *c)
 {
-  const int width = c->width;
-  const int height = c->height;
+  const int width = c->width_default;
+  const int height = c->height_default;
   c->pen = c->pen_default;
   c->color = 0;
   free_all_layers(c);
@@ -481,6 +485,31 @@ int *read_int_arguments_flex(int *len) {
   free(b);
 
   return p;
+}
+
+int resize_canvas(Canvas *c, int width, int height) {
+
+  if (width <= 0 || height <= 0)
+    return 1;
+
+  int diff = height - c->height;
+
+  c->width = width;
+  c->height = height;
+
+  if (diff < 0) {
+    diff = -diff;
+    for (int i=0; i<diff; i++) {
+      clear_command(stdout);
+      rewind_screen(stdout, 1);
+    }
+  } else {
+    for (int i=0; i<diff; i++) {
+      forward_screen(stdout, 1);
+    }
+  }
+
+  return 0;
 }
 
 Result interpret_command(const char *command, History *his, Canvas *c)
@@ -818,8 +847,9 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     if (indices == NULL)
       return ERROR;
 
-    c->width = indices[0];
-    c->height = indices[1];
+    int result = resize_canvas(c, indices[0], indices[1]);
+    if (result == 1)
+      return ERROR;
 
     printf("resized!\n");
     return NORMAL;
