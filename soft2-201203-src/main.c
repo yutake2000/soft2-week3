@@ -57,7 +57,8 @@ void print_canvas(FILE *fp, Canvas *c);
 void free_canvas(Canvas *c);
 
 // display functions
-void rewind_screen(FILE *fp,unsigned int line);
+void rewind_screen(FILE *fp, unsigned int line);
+void forward_screen(FILE *fp, unsigned int line);
 void clear_command(FILE *fp);
 void clear_screen(FILE *fp); // カーソル以降をすべて消去する
 
@@ -161,6 +162,12 @@ int main(int argc, char **argv)
     printf("%zu > ", his->size);
     if(fgets(buf, his->bufsize, stdin) == NULL) break;
 
+    rewind_screen(stdout, c->height + 4);
+    for (int i=0; i<c->height+4; i++) {
+      clear_command(stdout);
+      forward_screen(stdout, 1);
+    }
+
     const Result r = interpret_command(buf, his, c);
     if (r == EXIT) break;   
     if (r == NORMAL) {
@@ -171,7 +178,7 @@ int main(int argc, char **argv)
     clear_command(fp); // command itself
     rewind_screen(fp,1);
     clear_command(fp);
-    rewind_screen(fp, height+2); // rewind the screen to command input
+    rewind_screen(fp, c->height+2); // rewind the screen to command input
 
   }
 
@@ -284,9 +291,13 @@ void free_canvas(Canvas *c)
   free(c);
 }
 
-void rewind_screen(FILE *fp,unsigned int line)
+void rewind_screen(FILE *fp, unsigned int line)
 {
   fprintf(fp,"\e[%dA",line);
+}
+
+void forward_screen(FILE *fp, unsigned int line) {
+  fprintf(fp, "\e[%dB", line);
 }
 
 void clear_command(FILE *fp)
@@ -799,6 +810,18 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
     }
 
+    return NORMAL;
+  }
+
+  if (strcmp(s, "resize") == 0) {
+    int *indices = read_int_arguments(2);
+    if (indices == NULL)
+      return ERROR;
+
+    c->width = indices[0];
+    c->height = indices[1];
+
+    printf("resized!\n");
     return NORMAL;
   }
 
