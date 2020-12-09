@@ -12,9 +12,9 @@ struct layer {
   int **color; // 30-37
   int **bgcolor; // 40-47
   int visible; // 表示する場合は1
+  int clipped; // 下のレイヤーにクリッピングされる場合は1
   Layer *next;
   Layer *prev;
-  Layer *clipping_layer;
 };
 
 typedef struct {
@@ -247,8 +247,12 @@ void print_canvas(FILE *fp, Canvas *c)
           continue;
 
         // クリップ元のレイヤーに何も書かれていない場合は表示しない
-        Layer *clipping = layer->clipping_layer;
-        if (clipping != NULL && (!clipping->visible || clipping->board[x][y] == 0))
+        Layer *clipping_layer = layer;
+        while (clipping_layer != NULL && clipping_layer->clipped && clipping_layer->prev != NULL)
+          clipping_layer = clipping_layer->prev;
+
+        if (layer->clipped && clipping_layer != NULL &&
+          (!clipping_layer->visible || clipping_layer->board[x][y] == 0))
           continue;
 
         ch = layer->board[x][y];
@@ -776,12 +780,12 @@ Result interpret_command(const char *command, History *his, Canvas *c)
         return ERROR;
 
       printf("merged!\n");
-    } else if (strcmp(s, "clip") == 0) {
-      int *indices = read_int_arguments(2);
-      if (indices == NULL)
+    } else if (strcmp(s, "clip") == 0 || strcmp(s, "unclip") == 0) {
+      int *index = read_int_arguments(1);
+      if (index == NULL)
         return ERROR;
 
-      int result = clip_layer(c, indices[0]-1, indices[1]-1);
+      int result = clip_layer(c, *index-1, strcmp(s, "clip") == 0 ? 1 : 0);
 
       if (result == 1)
         return ERROR;
@@ -935,8 +939,8 @@ Layer *construct_layer(int width, int height) {
   Layer *layer = (Layer*)malloc(sizeof(Layer));
   layer->next = NULL;
   layer->prev = NULL;
-  layer->clipping_layer = NULL;
   layer->visible = 1;
+  layer->clipped = 0;
   layer->board = (char**)malloc(width * sizeof(char*));
   layer->color = (int**)malloc(width * sizeof(int*));
   layer->bgcolor = (int**)malloc(width * sizeof(int*));
@@ -985,7 +989,7 @@ int copy_layer(Canvas *c, int index) {
   }
 
   new_layer->visible = 1;
-  new_layer->clipping_layer = layer->clipping_layer;
+  new_layer->clipped = layer->clipped;
 
   insert_layer(c, c->layer_list->size, new_layer);
 
@@ -1052,8 +1056,9 @@ void add_layer(Canvas *c) {
 
 int insert_layer(Canvas *c, int index, Layer *layer) {
 
+  // index = size はOK
   size_t size = c->layer_list->size;
-  if (index >= size || index < 0) {
+  if (index > size || index < 0) {
     printf("out of bounds!\n");
     return 1;
   }
@@ -1151,22 +1156,16 @@ int move_layer(Canvas *c, int a, int b) {
   return 0;
 }
 
-int clip_layer(Canvas *c, int a, int b) {
-
-  Layer *layer1 = NULL, *layer2 = NULL;
+int clip_layer(Canvas *c, int index, int flag) {
 
   // b = -1の場合はクリッピングを解除するのでエラーにしない
   size_t size = c->layer_list->size;
-  if (a >= size || b >= size || a < 0 || (b != -1 && b < 0)) {
+  if (index >= size || index < 0) {
     printf("out of bounds!\n");
     return 1;
   }
 
-  layer1 = get_layer(c, a);
-  if (b != -1)
-    layer2 = get_layer(c, b);
-
-  layer1->clipping_layer = layer2;
+  get_layer(c, index)->clipped = flag;
 
   return 0;
 }
