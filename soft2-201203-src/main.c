@@ -164,8 +164,9 @@ int main(int argc, char **argv)
 
     rewind_screen(fp,2); // command results
     clear_command(fp); // command itself
-    rewind_screen(fp, height+3); // rewind the screen to command input
-    clear_screen(fp);
+    rewind_screen(fp,1);
+    clear_command(fp);
+    rewind_screen(fp, height+2); // rewind the screen to command input
 
   }
 
@@ -537,6 +538,21 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       interpret_command(com->str, his, c);
       rewind_screen(stdout, 1);
     }
+
+    clear_command(stdout);
+    printf("loaded \"%s\"\n",(s==NULL)?"history.txt":s);
+
+    return COMMAND;
+  }
+
+  if (strcmp(s, "animate") == 0) {
+  	s = strtok(NULL, " ");
+    int result = load_history(s, his);
+    if (result == 1) {
+      return ERROR;
+    }
+
+    his->size = 0;
 
     clear_command(stdout);
     printf("loaded \"%s\"\n",(s==NULL)?"history.txt":s);
