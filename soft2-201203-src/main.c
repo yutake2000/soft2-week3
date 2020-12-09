@@ -59,10 +59,10 @@ void print_canvas(FILE *fp, Canvas *c);
 void free_canvas(Canvas *c);
 
 // display functions
-void rewind_screen(FILE *fp, unsigned int line);
-void forward_screen(FILE *fp, unsigned int line);
-void clear_command(FILE *fp);
-void clear_screen(FILE *fp); // カーソル以降をすべて消去する
+void rewind_screen(unsigned int line);
+void forward_screen(unsigned int line);
+void clear_line();
+void clear_screen(); // カーソル以降をすべて消去する
 
 // enum for interpret_command results
 typedef enum res{ EXIT, NORMAL, COMMAND, UNKNOWN, ERROR} Result;
@@ -164,23 +164,17 @@ int main(int argc, char **argv)
     printf("%zu > ", his->size);
     if(fgets(buf, his->bufsize, stdin) == NULL) break;
 
-    rewind_screen(stdout, c->height + 4);
-    for (int i=0; i<c->height+4; i++) {
-      clear_command(stdout);
-      forward_screen(stdout, 1);
-    }
-
     const Result r = interpret_command(buf, his, c);
     if (r == EXIT) break;   
     if (r == NORMAL) {
       push_back_history(his, buf);
     }
 
-    rewind_screen(fp,2); // command results
-    clear_command(fp); // command itself
-    rewind_screen(fp,1);
-    clear_command(fp);
-    rewind_screen(fp, c->height+2); // rewind the screen to command input
+    rewind_screen(2); // command results
+    clear_line(); // command itself
+    rewind_screen(1);
+    clear_line();
+    rewind_screen(c->height+2); // rewind the screen to command input
 
   }
 
@@ -239,6 +233,7 @@ void print_canvas(FILE *fp, Canvas *c)
   char **board = get_cur_layer(c)->board;
   
   // 上の壁
+  clear_line();
   fprintf(fp,"+");
   for (int x = 0 ; x < width ; x++)
     fprintf(fp, "-");
@@ -246,6 +241,7 @@ void print_canvas(FILE *fp, Canvas *c)
 
   // 外壁と内側
   for (int y = 0 ; y < height ; y++) {
+    clear_line();
     fprintf(fp,"|");
     for (int x = 0 ; x < width; x++) {
       char ch = ' ';
@@ -282,6 +278,7 @@ void print_canvas(FILE *fp, Canvas *c)
   }
   
   // 下の壁
+  clear_line();
   fprintf(fp, "+");
   for (int x = 0 ; x < width ; x++)
     fprintf(fp, "-");
@@ -295,23 +292,23 @@ void free_canvas(Canvas *c)
   free(c);
 }
 
-void rewind_screen(FILE *fp, unsigned int line)
+void rewind_screen(unsigned int line)
 {
-  fprintf(fp,"\e[%dA",line);
+  printf("\e[%dA",line);
 }
 
-void forward_screen(FILE *fp, unsigned int line) {
-  fprintf(fp, "\e[%dB", line);
+void forward_screen(unsigned int line) {
+  printf("\e[%dB", line);
 }
 
-void clear_command(FILE *fp)
+void clear_line()
 {
-  fprintf(fp,"\e[2K");
+  printf("\e[2K");
 }
 
-void clear_screen(FILE *fp)
+void clear_screen()
 {
-  fprintf(fp, "\e[0J");
+  printf("\e[0J");
 }
 
 int max(const int a, const int b)
@@ -408,7 +405,6 @@ int load_history(const char *filename, History *his) {
 
   FILE *fp;
   if ((fp = fopen(filename, "r")) == NULL) {
-    clear_command(stdout);
     printf("error: cannot open %s.\n", filename);
     return 1;
   }
@@ -433,7 +429,6 @@ int *read_int_arguments(const int count) {
   for (int i = 0 ; i < count; i++){
     b[i] = strtok(NULL, " ");
     if (b[i] == NULL){
-      clear_command(stdout);
       printf("too few arguments.\n");
       return NULL;
     }
@@ -443,8 +438,7 @@ int *read_int_arguments(const int count) {
     char *e;
     long v = strtol(b[i],&e, 10);
     if (*e != '\0'){
-      clear_command(stdout);
-      printf("Non-int value is included.\n");
+            printf("Non-int value is included.\n");
       return NULL;
     }
     p[i] = (int)v;
@@ -475,8 +469,7 @@ int *read_int_arguments_flex(int *len) {
     char *e;
     long v = strtol(b[i],&e, 10);
     if (*e != '\0'){
-      clear_command(stdout);
-      printf("Non-int value is included.\n");
+            printf("Non-int value is included.\n");
       return NULL;
     }
     p[i] = (int)v;
@@ -500,12 +493,11 @@ int resize_canvas(Canvas *c, int width, int height) {
   if (diff < 0) {
     diff = -diff;
     for (int i=0; i<diff; i++) {
-      clear_command(stdout);
-      rewind_screen(stdout, 1);
+            rewind_screen(1);
     }
   } else {
     for (int i=0; i<diff; i++) {
-      forward_screen(stdout, 1);
+      forward_screen(1);
     }
   }
 
@@ -525,11 +517,12 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   if (s == NULL) {
   	s = "redo";
   	/*
-  	clear_command(stdout);
-    printf("none!\n");
+  	    printf("none!\n");
     return UNKNOWN;
     */
   }
+
+  clear_line();
 
   // The first token corresponds to command
   if (strcmp(s, "line") == 0) {
@@ -541,7 +534,6 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     draw_line(c, args[0], args[1], args[2], args[3]);
 
     free(args);
-    clear_command(stdout);
     printf("1 line drawn\n");
     return NORMAL;
   }
@@ -555,7 +547,6 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     draw_rect(c, args[0], args[1], args[2], args[3]);
 
     free(args);
-    clear_command(stdout);
     printf("1 rect drawn\n");
     return NORMAL;
   }
@@ -569,16 +560,14 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     draw_circle(c, args[0], args[1], args[2]);
 
     free(args);
-    clear_command(stdout);
-    printf("1 circle drawn\n");
+        printf("1 circle drawn\n");
     return NORMAL;
   }
 
   if (strcmp(s, "save") == 0) {
     s = strtok(NULL, " ");
     save_history(s, his);
-    clear_command(stdout);
-    printf("saved as \"%s\"\n",(s==NULL)?"history.txt":s);
+        printf("saved as \"%s\"\n",(s==NULL)?"history.txt":s);
     return COMMAND;
   }
 
@@ -593,11 +582,10 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     reset_canvas(c);
     for (Command *com = his->begin; com != NULL; com = com->next) {
       interpret_command(com->str, his, c);
-      rewind_screen(stdout, 1);
+      rewind_screen(1);
     }
 
-    clear_command(stdout);
-    printf("loaded \"%s\"\n",(s==NULL)?"history.txt":s);
+        printf("loaded \"%s\"\n",(s==NULL)?"history.txt":s);
 
     return COMMAND;
   }
@@ -611,7 +599,6 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
     his->size = 0;
 
-    clear_command(stdout);
     printf("loaded \"%s\"\n",(s==NULL)?"history.txt":s);
 
     return COMMAND;
@@ -620,22 +607,19 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   if (strcmp(s, "chpen") == 0) {
     s = strtok(NULL, " ");
     if (s == NULL) {
-      clear_command(stdout);
-      printf("usage: chpen <character>\n");
+            printf("usage: chpen <character>\n");
       return ERROR;
     }
 
     c->pen = s[0];
 
-    clear_command(stdout);
-    printf("changed!\n");
+        printf("changed!\n");
     return NORMAL;
   }
 
   if (strcmp(s, "marker") == 0) {
     c->pen = 0;
-    clear_command(stdout);
-    printf("changed!\n");
+        printf("changed!\n");
     return NORMAL;
   }
 
@@ -645,8 +629,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
     }
     c->color = *color;
-    clear_command(stdout);
-    printf("changed!\n");
+        printf("changed!\n");
     return NORMAL;
   }
 
@@ -656,15 +639,13 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
     if (his->size == 0) { // コマンドが1つもなかった場合
 
-      clear_command(stdout);
-      printf("none!\n");
+            printf("none!\n");
 
     } else if (his->size == 1) { // コマンドが1つだけだった場合
 
       his->size--;
 
-      clear_command(stdout);
-      printf("undo!\n");
+            printf("undo!\n");
 
     } else {
 
@@ -674,13 +655,12 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       // 最初から実行し直す
       for (int i=0; i< his->size; i++) {
         interpret_command(com->str, his, c);
-        rewind_screen(stdout, 1);
+        rewind_screen(1);
 
         com = com->next;
       }
 
-      clear_command(stdout);
-      printf("undo!\n");
+            printf("undo!\n");
 
     }
 
@@ -701,13 +681,11 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       }
 
       interpret_command(last->str, his, c);
-      rewind_screen(stdout, 1);
+      rewind_screen(1);
 
-      clear_command(stdout);
       printf("redo!\n");
     } else {
-      clear_command(stdout);
-      printf("none!\n");
+            printf("none!\n");
     }
     return COMMAND;
   }
@@ -716,8 +694,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
     s = strtok(NULL, " ");
 
-    clear_command(stdout);
-    if (strcmp(s, "add") == 0) {
+        if (strcmp(s, "add") == 0) {
       add_layer(c);
       printf("added!\n");
     } else if (strcmp(s, "ch") == 0 || strcmp(s, "change") == 0) {
@@ -858,8 +835,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   if (strcmp(s, "quit") == 0) {
     return EXIT;
   }
-  clear_command(stdout);
-  printf("error: unknown command.\n");
+    printf("error: unknown command.\n");
   return UNKNOWN;
 }
 
