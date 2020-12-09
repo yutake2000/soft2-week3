@@ -102,6 +102,8 @@ int move_layer(Canvas *c, int a, int b);
 Layer *construct_layer(int width, int height);
 int copy_layer(Canvas *c, int index);
 int merge_layers(Canvas *c, int len, int indices[]);
+// 下のレイヤーに結合する
+int merge_layer(Canvas *c, int index);
 // レイヤーaをレイヤーbにクリッピング(b = -1で解除)。
 int clip_layer(Canvas *c, int a, int b);
 void free_layer(Layer *layer);
@@ -766,31 +768,32 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
       printf("copied!\n");
     } else if (strcmp(s, "merge") == 0) {
-      int len = 0;
-      int *indices = read_int_arguments_flex(&len);
-      if (indices == NULL)
-      	return ERROR;
+      int *indices = read_int_arguments(1);
+      int index = -1;
 
-      for (int i=0; i<len; i++) {
-        indices[i]--;
-      }
+      if (indices == NULL) // 引数省略時
+      	index = c->layer_index;
+      else
+        index = indices[0] - 1;
 
-      int result = merge_layers(c, len, indices);
+      int result = merge_layer(c, index);
       if (result == 1)
         return ERROR;
 
       printf("merged!\n");
     } else if (strcmp(s, "clip") == 0 || strcmp(s, "unclip") == 0) {
+      int flag = (strcmp(s, "clip") == 0 ? 1 : 0); // clipなら1
+
       int *index = read_int_arguments(1);
       if (index == NULL)
         return ERROR;
 
-      int result = clip_layer(c, *index-1, strcmp(s, "clip") == 0 ? 1 : 0);
+      int result = clip_layer(c, *index-1, flag);
 
       if (result == 1)
         return ERROR;
 
-      printf("clipped!\n");
+      printf(flag ? "clipped!\n" : "unclipped!\n");
     } else {
       printf("usage: layer [command]\n");
       return ERROR;
@@ -1041,6 +1044,55 @@ int merge_layers(Canvas *c, int len, int indices[]) {
   return 0;
 }
 
+int merge_layer(Canvas *c, int index) {
+
+  size_t size = c->layer_list->size;
+  if (index > size || index < 0) {
+    printf("out of bounds!\n");
+    return 1;
+  }
+
+  // 一番下のレイヤーに上のレイヤーを上書きしていく
+  Layer *layer = get_layer(c, index);
+  Layer *base_layer = layer->prev;
+
+  if (base_layer == NULL) {
+    printf("none!\n");
+    return 1;
+  }
+
+  // 自身がクリッピングされていて、かつすぐ下のレイヤーがクリッピング元である場合
+  // それ以外の場合はクリッピングを無視して結合する
+  // - 両方クリッピングされていない場合
+  // - 下のレイヤーのみクリッピングされている場合
+  // - 両方がさらに下のレイヤーにクリッピングされている場合
+  int clipped = (layer->clipped && !base_layer->clipped);
+
+  for (int x=0; x<c->width; x++) {
+    for (int y=0; y<c->height; y++) {
+
+      // 何も書かれていない
+      if (layer->board[x][y] == 0)
+        continue;
+
+      // クリッピング元に何も書かれていない
+      if (clipped && base_layer->board[x][y] == 0)
+        continue;
+
+      base_layer->board[x][y] = layer->board[x][y];
+      base_layer->color[x][y] = layer->color[x][y];
+
+      if (layer->bgcolor[x][y] != 0) {
+        base_layer->bgcolor[x][y] = layer->bgcolor[x][y];
+      }
+
+    }
+  }
+
+  remove_layer(c, index, 1); //freeもする
+
+  return 0;
+}
 
 void add_layer(Canvas *c) {
   Layer *last = get_last_layer(c);
