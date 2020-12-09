@@ -242,16 +242,20 @@ void print_canvas(FILE *fp, Canvas *c)
         if (layer->visible && layer->board[x][y] != 0) {
           ch = layer->board[x][y];
           color = layer->color[x][y];
-          bgcolor = layer->bgcolor[x][y];
+          if (layer->bgcolor[x][y] != 0) {
+          	bgcolor = layer->bgcolor[x][y];
+          }
           is_current_layer = (i == c->layer_index);
         }
       }
       
+      print_char(ch, color, bgcolor, fp);
+      /*
       if (is_current_layer) {
         print_char(ch, color, bgcolor, fp);
       } else {
         print_char(ch, 2, 0, fp); // 現在のレイヤー以外は薄く表示する
-      }
+      }*/
     }
     fprintf(fp,"|\n");
   }
