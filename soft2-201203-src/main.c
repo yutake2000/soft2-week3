@@ -250,12 +250,6 @@ void print_canvas(FILE *fp, Canvas *c)
       }
       
       print_char(ch, color, bgcolor, fp);
-      /*
-      if (is_current_layer) {
-        print_char(ch, color, bgcolor, fp);
-      } else {
-        print_char(ch, 2, 0, fp); // 現在のレイヤー以外は薄く表示する
-      }*/
     }
     fprintf(fp,"|\n");
   }
@@ -672,41 +666,81 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       printf("added!\n");
     } else if (strcmp(s, "ch") == 0 || strcmp(s, "change") == 0) {
       int *index = read_int_arguments(1);
+      if (index == NULL)
+      	return ERROR;
+
       change_layer(c, *index - 1);
       printf("changed!\n");
     } else if (strcmp(s, "rm") == 0 || strcmp(s, "remove") == 0) {
       int *index = read_int_arguments(1);
+      if (index == NULL)
+      	return ERROR;
+
       int result = remove_layer(c, *index - 1, 1); // freeもする
-      if (result == 1) {
+      if (result == 1)
         return ERROR;
-      }
+
       printf("removed!\n");
     } else if (strcmp(s, "insert") == 0) {
       int *index = read_int_arguments(1);
+      if (index == NULL)
+      	return ERROR;
+
       insert_layer(c, *index - 1, construct_layer(c->width, c->height));
       printf("inserted\n");
     } else if (strcmp(s, "mv") == 0 || strcmp(s, "move") == 0) {
       int *indices = read_int_arguments(2);
+      if (indices == NULL)
+      	return ERROR;
+
       move_layer(c, indices[0] - 1, indices[1] - 1);
       printf("moved!\n");
     } else if (strcmp(s, "show") == 0) {
       int *index = read_int_arguments(1);
-      show_layer(c, *index - 1);
+      if (index == NULL)
+      	return ERROR;
+
+      if (*index == 0) { // 0を指定した場合はすべてのレイヤーを表示する
+      	for (int i=0; i<c->layer_list->size; i++) {
+      	  show_layer(c, i);
+      	}
+      } else {
+	    show_layer(c, *index - 1);
+	  }
+
       printf("showed!\n");
     } else if (strcmp(s, "hide") == 0) {
       int *index = read_int_arguments(1);
-      hide_layer(c, *index - 1);
+      if (index == NULL)
+      	return ERROR;
+
+      if (*index == 0) { // 0を指定した場合は現在のレイヤー以外を非表示にする
+      	for (int i=0; i<c->layer_list->size; i++) {
+    	  if (i != c->layer_index)
+      		hide_layer(c, i);
+      	}
+      } else {
+	    hide_layer(c, *index - 1);
+	  }
+
       printf("hidden!\n");
     } else if (strcmp(s, "cp") == 0 || strcmp(s, "copy") == 0) {
       int *index = read_int_arguments(1);
+      if (index == NULL)
+      	return ERROR;
+
       copy_layer(c, *index - 1);
       printf("copied!\n");
     } else if (strcmp(s, "merge") == 0) {
       int len = 0;
       int *indices = read_int_arguments_flex(&len);
+      if (indices == NULL)
+      	return ERROR;
+
       for (int i=0; i<len; i++) {
         indices[i]--;
       }
+
       merge_layers(c, len, indices);
       printf("merged!\n");
     } else {
