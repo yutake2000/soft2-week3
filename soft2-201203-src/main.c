@@ -466,12 +466,15 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   assert(strlen(buf) != 0);
   buf[strlen(buf) - 1] = 0; // remove the newline character at the end
 
-  const char *s = strtok(buf, " ");
+  char *s = strtok(buf, " ");
 
-  if (s == NULL) { // 何も入力されなかった場合
-    clear_command(stdout);
+  if (s == NULL) {
+  	s = "redo";
+  	/*
+  	clear_command(stdout);
     printf("none!\n");
     return UNKNOWN;
+    */
   }
 
   // The first token corresponds to command
