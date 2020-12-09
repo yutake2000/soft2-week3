@@ -85,9 +85,9 @@ Command *construct_command(char *str);
 Layer *get_layer(Canvas *c, int index);
 Layer *get_cur_layer(Canvas *c);
 Layer *get_last_layer(Canvas *c);
-void hide_layer(Canvas *c, int index);
-void show_layer(Canvas *c, int index);
-void change_layer(Canvas *c, int index);
+int hide_layer(Canvas *c, int index);
+int show_layer(Canvas *c, int index);
+int change_layer(Canvas *c, int index);
 // layer_listの最後に空のレイヤーを追加する。
 void add_layer(Canvas *c);
 // layerは空のレイヤーか、remove_layerでリストから切り離されているもの。
@@ -99,8 +99,8 @@ int remove_layer(Canvas *c, int index, int freeing);
 int move_layer(Canvas *c, int a, int b);
 // 空のレイヤーを作る。
 Layer *construct_layer(int width, int height);
-void copy_layer(Canvas *c, int index);
-void merge_layers(Canvas *c, int len, int indices[]);
+int copy_layer(Canvas *c, int index);
+int merge_layers(Canvas *c, int len, int indices[]);
 void free_layer(Layer *layer);
 void free_all_layers(Canvas *c);
 
@@ -669,7 +669,10 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       if (index == NULL)
       	return ERROR;
 
-      change_layer(c, *index - 1);
+      int result = change_layer(c, *index - 1);
+      if (result == 1)
+        return ERROR;
+      
       printf("changed!\n");
     } else if (strcmp(s, "rm") == 0 || strcmp(s, "remove") == 0) {
       int *index = read_int_arguments(1);
@@ -686,27 +689,37 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       if (index == NULL)
       	return ERROR;
 
-      insert_layer(c, *index - 1, construct_layer(c->width, c->height));
+      int result = insert_layer(c, *index - 1, construct_layer(c->width, c->height));
+      if (result == 1)
+        return ERROR;
+
       printf("inserted\n");
     } else if (strcmp(s, "mv") == 0 || strcmp(s, "move") == 0) {
       int *indices = read_int_arguments(2);
       if (indices == NULL)
       	return ERROR;
 
-      move_layer(c, indices[0] - 1, indices[1] - 1);
+      int result = move_layer(c, indices[0] - 1, indices[1] - 1);
+      if (result == 1)
+        return ERROR;
+
       printf("moved!\n");
     } else if (strcmp(s, "show") == 0) {
       int *index = read_int_arguments(1);
       if (index == NULL)
       	return ERROR;
 
+      int result = 0;
       if (*index == 0) { // 0を指定した場合はすべてのレイヤーを表示する
       	for (int i=0; i<c->layer_list->size; i++) {
       	  show_layer(c, i);
       	}
       } else {
-	    show_layer(c, *index - 1);
-	  }
+	      result = show_layer(c, *index - 1);
+	    }
+
+      if (result == 1)
+        return ERROR;
 
       printf("showed!\n");
     } else if (strcmp(s, "hide") == 0) {
@@ -714,14 +727,18 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       if (index == NULL)
       	return ERROR;
 
+      int result = 0;
       if (*index == 0) { // 0を指定した場合は現在のレイヤー以外を非表示にする
       	for (int i=0; i<c->layer_list->size; i++) {
     	  if (i != c->layer_index)
       		hide_layer(c, i);
       	}
       } else {
-	    hide_layer(c, *index - 1);
-	  }
+        result = hide_layer(c, *index - 1);
+	    }
+
+      if (result == 1)
+        return ERROR;
 
       printf("hidden!\n");
     } else if (strcmp(s, "cp") == 0 || strcmp(s, "copy") == 0) {
@@ -729,7 +746,10 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       if (index == NULL)
       	return ERROR;
 
-      copy_layer(c, *index - 1);
+      int result = copy_layer(c, *index - 1);
+      if (result == 1)
+        return ERROR;
+
       printf("copied!\n");
     } else if (strcmp(s, "merge") == 0) {
       int len = 0;
@@ -741,7 +761,10 @@ Result interpret_command(const char *command, History *his, Canvas *c)
         indices[i]--;
       }
 
-      merge_layers(c, len, indices);
+      int result = merge_layers(c, len, indices);
+      if (result == 1)
+        return ERROR;
+
       printf("merged!\n");
     } else {
       printf("usage: layer [command = add | change]\n");
@@ -826,6 +849,11 @@ Command *construct_command(char *str) {
 }
 
 Layer *get_layer(Canvas *c, int index) {
+  size_t size = c->layer_list->size;
+  if (index >= size || index < 0) {
+    return NULL;
+  }
+
   Layer *layer = c->layer_list->begin;
   for (int i=0; i<index; i++) {
     layer = layer->next;
@@ -847,16 +875,39 @@ Layer *get_last_layer(Canvas *c) {
   return layer;
 }
 
-void hide_layer(Canvas *c, int index) {
+int hide_layer(Canvas *c, int index) {
+
+  size_t size = c->layer_list->size;
+  if (index >= size) {
+    printf("out of bounds!\n");
+    return 1;
+  }
+
   get_layer(c, index)->visible = 0;
+  return 0;
 }
 
-void show_layer(Canvas *c, int index) {
+int show_layer(Canvas *c, int index) {
+  size_t size = c->layer_list->size;
+  if (index >= size || index < 0) {
+    printf("out of bounds!\n");
+    return 1;
+  }
+
   get_layer(c, index)->visible = 1;
+  return 0;
 }
 
-void change_layer(Canvas *c, int index) {
-  c->layer_index = index; 
+int change_layer(Canvas *c, int index) {
+  size_t size = c->layer_list->size;
+  if (index >= size || index < 0) {
+    printf("out of bounds!\n");
+    return 1;
+  }
+
+  c->layer_index = index;
+
+  return 0;
 }
 
 Layer *construct_layer(int width, int height) {
@@ -889,7 +940,13 @@ Layer *construct_layer(int width, int height) {
   return layer;
 }
 
-void copy_layer(Canvas *c, int index) {
+int copy_layer(Canvas *c, int index) {
+
+  size_t size = c->layer_list->size;
+  if (index >= size || index < 0) {
+    printf("out of bounds!\n");
+    return 1;
+  }
 
   const int width = c->width;
   const int height = c->height;
@@ -909,9 +966,10 @@ void copy_layer(Canvas *c, int index) {
 
   insert_layer(c, c->layer_list->size, new_layer);
 
+  return 0;
 }
 
-void merge_layers(Canvas *c, int len, int indices[]) {
+int merge_layers(Canvas *c, int len, int indices[]) {
 
   // バブルソート
   for (int i=len; i>0; i--) {
@@ -922,6 +980,12 @@ void merge_layers(Canvas *c, int len, int indices[]) {
         indices[j+1] = temp;
       }
     }
+  }
+
+  size_t size = c->layer_list->size;
+  if (indices[len-1] >= size || indices[0] < 0) {
+    printf("out of bounds!\n");
+    return 1;
   }
 
   // 一番下のレイヤーに上のレイヤーを上書きしていく
@@ -946,6 +1010,8 @@ void merge_layers(Canvas *c, int len, int indices[]) {
     int index = indices[i] - (i-1); // 下のレイヤーが削除されるたびに上のレイヤーの番号が下がっていく
     remove_layer(c, index, 1); // freeもする
   }
+
+  return 0;
 }
 
 
@@ -962,6 +1028,12 @@ void add_layer(Canvas *c) {
 }
 
 int insert_layer(Canvas *c, int index, Layer *layer) {
+
+  size_t size = c->layer_list->size;
+  if (index >= size || index < 0) {
+    printf("out of bounds!\n");
+    return 1;
+  }
 
   if (index == c->layer_list->size) { // 最後に移動する場合
     Layer *last = get_last_layer(c);
@@ -992,6 +1064,13 @@ int insert_layer(Canvas *c, int index, Layer *layer) {
 }
 
 int remove_layer(Canvas *c, int index, int freeing) {
+
+  size_t size = c->layer_list->size;
+  if (index >= size || index < 0) {
+    printf("out of bounds!\n");
+    return 1;
+  }
+  
   Layer *layer = get_layer(c, index);
 
   if (index == 0 && layer->next == NULL) {
@@ -1025,6 +1104,13 @@ int remove_layer(Canvas *c, int index, int freeing) {
 }
 
 int move_layer(Canvas *c, int a, int b) {
+
+  size_t size = c->layer_list->size;
+  if (a >= size || b >= size || a < 0 || b < 0) {
+    printf("out of bounds!\n");
+    return 1;
+  }
+  
   Layer *cur_layer = get_cur_layer(c);
   Layer *layer = get_layer(c, a);
 
