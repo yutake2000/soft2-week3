@@ -14,6 +14,7 @@ struct layer {
   int visible; // 表示する場合は1
   Layer *next;
   Layer *prev;
+  Layer *clipping_layer;
 };
 
 typedef struct {
@@ -101,6 +102,8 @@ int move_layer(Canvas *c, int a, int b);
 Layer *construct_layer(int width, int height);
 int copy_layer(Canvas *c, int index);
 int merge_layers(Canvas *c, int len, int indices[]);
+// レイヤーaをレイヤーbにクリッピング(b = -1で解除)。
+int clip_layer(Canvas *c, int a, int b);
 void free_layer(Layer *layer);
 void free_all_layers(Canvas *c);
 
@@ -239,14 +242,21 @@ void print_canvas(FILE *fp, Canvas *c)
       // 番号が大きいレイヤーを上に表示する
       for (int i=0; i<c->layer_list->size; i++) {
         Layer *layer = get_layer(c, i);
-        if (layer->visible && layer->board[x][y] != 0) {
-          ch = layer->board[x][y];
-          color = layer->color[x][y];
-          if (layer->bgcolor[x][y] != 0) {
-          	bgcolor = layer->bgcolor[x][y];
-          }
-          is_current_layer = (i == c->layer_index);
+
+        if (!layer->visible || layer->board[x][y] == 0)
+          continue;
+
+        // クリップ元のレイヤーに何も書かれていない場合は表示しない
+        Layer *clipping = layer->clipping_layer;
+        if (clipping != NULL && (!clipping->visible || clipping->board[x][y] == 0))
+          continue;
+
+        ch = layer->board[x][y];
+        color = layer->color[x][y];
+        if (layer->bgcolor[x][y] != 0) {
+        	bgcolor = layer->bgcolor[x][y];
         }
+        is_current_layer = (i == c->layer_index);
       }
       
       print_char(ch, color, bgcolor, fp);
@@ -672,7 +682,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       int result = change_layer(c, *index - 1);
       if (result == 1)
         return ERROR;
-      
+
       printf("changed!\n");
     } else if (strcmp(s, "rm") == 0 || strcmp(s, "remove") == 0) {
       int *index = read_int_arguments(1);
@@ -766,8 +776,19 @@ Result interpret_command(const char *command, History *his, Canvas *c)
         return ERROR;
 
       printf("merged!\n");
+    } else if (strcmp(s, "clip") == 0) {
+      int *indices = read_int_arguments(2);
+      if (indices == NULL)
+        return ERROR;
+
+      int result = clip_layer(c, indices[0]-1, indices[1]-1);
+
+      if (result == 1)
+        return ERROR;
+
+      printf("clipped!\n");
     } else {
-      printf("usage: layer [command = add | change]\n");
+      printf("usage: layer [command]\n");
       return ERROR;
     }
 
@@ -914,6 +935,7 @@ Layer *construct_layer(int width, int height) {
   Layer *layer = (Layer*)malloc(sizeof(Layer));
   layer->next = NULL;
   layer->prev = NULL;
+  layer->clipping_layer = NULL;
   layer->visible = 1;
   layer->board = (char**)malloc(width * sizeof(char*));
   layer->color = (int**)malloc(width * sizeof(int*));
@@ -963,6 +985,7 @@ int copy_layer(Canvas *c, int index) {
   }
 
   new_layer->visible = 1;
+  new_layer->clipping_layer = layer->clipping_layer;
 
   insert_layer(c, c->layer_list->size, new_layer);
 
@@ -1124,6 +1147,26 @@ int move_layer(Canvas *c, int a, int b) {
       c->layer_index = i;
     }
   }
+
+  return 0;
+}
+
+int clip_layer(Canvas *c, int a, int b) {
+
+  Layer *layer1 = NULL, *layer2 = NULL;
+
+  // b = -1の場合はクリッピングを解除するのでエラーにしない
+  size_t size = c->layer_list->size;
+  if (a >= size || b >= size || a < 0 || (b != -1 && b < 0)) {
+    printf("out of bounds!\n");
+    return 1;
+  }
+
+  layer1 = get_layer(c, a);
+  if (b != -1)
+    layer2 = get_layer(c, b);
+
+  layer1->clipping_layer = layer2;
 
   return 0;
 }
