@@ -46,11 +46,13 @@ int main(int argc, char **argv)
   while (1) {
 
     print_canvas(fp,c);
-    printf("Layer %d/%zu | pen ", c->layer_index + 1, c->layer_list->size);
-    if (c->pen == 0) { // マーカーの場合
-      printf("\e[%dm   \e[0m", c->color + 40);
+    printf("Layer %d/%zu | ", c->layer_index + 1, c->layer_list->size);
+    if (c->pen == ' ') { // マーカーの場合
+      printf("pen \e[%dm   \e[0m", c->color + 40);
+    } else if (c->pen == 0) {
+      printf("eraser");
     } else {
-      printf("\e[%dm%c%c%c\e[0m", c->color + 30, c->pen, c->pen, c->pen);
+      printf("pen \e[%dm%c%c%c\e[0m", c->color + 30, c->pen, c->pen, c->pen);
     }
     Command *last = get_last_command(his, 0);
     if (last != NULL) {
@@ -171,10 +173,9 @@ void print_canvas(FILE *fp, Canvas *c)
         is_current_layer = (i == c->layer_index);
       }
       
-      for (int i=1; i<c->aspect; i++) {
-        fputc(' ', fp);
+      for (int i=0; i<c->aspect; i++) {
+        print_char(ch, color, bgcolor, fp);
       }
-      print_char(ch, color, bgcolor, fp);
     }
     fprintf(fp,"|\n");
   }
@@ -226,9 +227,13 @@ int draw_dot(Canvas *c, const int x, const int y) {
 
   Layer *layer = get_cur_layer(c);
 
-  if (c->pen == 0) { // マーカーの場合
+  if (c->pen == ' ') { // マーカーの場合
     layer->board[x][y] = ' ';
     layer->bgcolor[x][y] = c->color + 40; // \e[40mからが背景色指定
+  } else if (c->pen == 0) { // 消しゴムの場合
+    layer->board[x][y] = 0;
+    layer->color[x][y] = 0;
+    layer->bgcolor[x][y] = 0;
   } else {
     layer->board[x][y] = c->pen;
     layer->color[x][y] = c->color + 30; // \e[30mからが文字色指定
@@ -621,6 +626,12 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   }
 
   if (strcmp(s, "marker") == 0) {
+    c->pen = ' ';
+    printf("changed!\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "eraser") == 0) {
     c->pen = 0;
     printf("changed!\n");
     return NORMAL;
@@ -679,12 +690,8 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       }
 
       interpret_command(last->str, his, c);
-      rewind_screen(1);
-
-      clear_line();
-      printf("redo!\n");
     } else {
-            printf("none!\n");
+      printf("none!\n");
     }
     return COMMAND;
   }
