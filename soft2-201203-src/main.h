@@ -21,6 +21,7 @@ typedef struct
   int height;
   int width_default;
   int height_default;
+  int aspect;
   int layer_index;
   Layer_List *layer_list;
   char pen;

@@ -88,6 +88,7 @@ Canvas *init_canvas(int width,int height, char pen)
   new->height = height;
   new->width_default = width;
   new->height_default = height;
+  new->aspect = 1;
   new->layer_list = (Layer_List*)malloc(sizeof(Layer_List));
   new->layer_list->begin = construct_layer(width, height);
   new->layer_list->size = 1;
@@ -103,6 +104,7 @@ void reset_canvas(Canvas *c)
 {
   c->width = c->width_default;
   c->height = c->height_default;
+  c->aspect = 1;
   c->pen = c->pen_default;
   c->color = 0;
   free_all_layers(c);
@@ -132,7 +134,7 @@ void print_canvas(FILE *fp, Canvas *c)
   // 上の壁
   clear_line();
   fprintf(fp,"+");
-  for (int x = 0 ; x < width ; x++)
+  for (int x = 0 ; x < width * c->aspect; x++)
     fprintf(fp, "-");
   fprintf(fp, "+\n");
 
@@ -169,6 +171,9 @@ void print_canvas(FILE *fp, Canvas *c)
         is_current_layer = (i == c->layer_index);
       }
       
+      for (int i=1; i<c->aspect; i++) {
+        fputc(' ', fp);
+      }
       print_char(ch, color, bgcolor, fp);
     }
     fprintf(fp,"|\n");
@@ -177,7 +182,7 @@ void print_canvas(FILE *fp, Canvas *c)
   // 下の壁
   clear_line();
   fprintf(fp, "+");
-  for (int x = 0 ; x < width ; x++)
+  for (int x = 0 ; x < width * c->aspect; x++)
     fprintf(fp, "-");
   fprintf(fp, "+\n");
   fflush(fp);
@@ -594,6 +599,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
     }
 
+    reset_canvas(c);
     his->size = 0;
 
     printf("loaded \"%s\"\n",(s==NULL)?"history.txt":s);
@@ -610,13 +616,13 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
     c->pen = s[0];
 
-        printf("changed!\n");
+    printf("changed!\n");
     return NORMAL;
   }
 
   if (strcmp(s, "marker") == 0) {
     c->pen = 0;
-        printf("changed!\n");
+    printf("changed!\n");
     return NORMAL;
   }
 
@@ -626,7 +632,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
     }
     c->color = *color;
-        printf("changed!\n");
+    printf("changed!\n");
     return NORMAL;
   }
 
@@ -803,6 +809,20 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
 
     printf("resized!\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "aspect") == 0) {
+    int *aspect = read_int_arguments(1);
+    if (aspect == NULL)
+      return ERROR;
+    if (aspect[0] < 0) {
+      printf("invalid!\n");
+      return ERROR;
+    }
+
+    c->aspect = aspect[0];
+    printf("changed!\n");
     return NORMAL;
   }
 
