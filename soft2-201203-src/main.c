@@ -295,6 +295,47 @@ void draw_circle(Canvas *c, const int x0, const int y0, const int r, int fill) {
 
 }
 
+int in_board(int x, int y, Canvas *c) {
+
+  if (x < 0 || c->width <= x) return 0;
+  if (y < 0 || c->height <= y) return 0;
+
+  return 1;
+}
+
+void copy_and_paste(Canvas *c, int x0, int y0, int w, int h, int x1, int y1) {
+
+  int **board, **color, **bgcolor;
+  copy_board(c->width, c->height, &board, &color, &bgcolor, get_cur_layer(c));
+
+  Layer *layer = get_cur_layer(c);
+
+  int dx = x1 - x0;
+  int dy = y1 - y0;
+  for (int x=x0; x<x0+w; x++) {
+    for (int y=y0; y<y0+h; y++) {
+      if (!in_board(x, y, c))
+        continue;
+
+      int nx = x + dx;
+      int ny = y + dy;
+      if (!in_board(nx, ny, c))
+        continue;
+
+      board[nx][ny] = layer->board[x][y];
+      color[nx][ny] = layer->color[x][y];
+      bgcolor[nx][ny] = layer->bgcolor[x][y];
+    }
+  }
+
+  free_board(layer);
+
+  layer->board = board;
+  layer->color = color;
+  layer->bgcolor = bgcolor;
+
+}
+
 void save_history(const char *filename, History *his)
 {
   const char *default_history_file = "history.txt";
@@ -833,6 +874,17 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
     c->aspect = aspect[0];
     printf("changed!\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "copy") == 0) {
+
+    int *args = read_int_arguments(6);
+    if (args == NULL)
+      return ERROR;
+
+    copy_and_paste(c, args[0], args[1], args[2], args[3], args[4], args[5]);
+
     return NORMAL;
   }
 

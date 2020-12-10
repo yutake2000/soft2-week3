@@ -65,6 +65,7 @@ int draw_dot(Canvas *c, const int x, const int y); //(x, y)がキャンバス内
 void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1);
 void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height, int fill);
 void draw_circle(Canvas *c, const int x0, const int y0, const int r, int fill);
+void copy_and_paste(Canvas *c, int x0, int y0, int w, int h, int x1, int y1);
 
 int *read_int_arguments(const int count); // countの数だけコマンドの引数を読み込みその配列を返す。
 int *read_int_arguments_flex(int *len); // 可変長引数を読み込み配列を返す。長さをlenに書き込む。
@@ -99,11 +100,13 @@ int **get_2darray(int width, int height);
 Layer *construct_layer(int width, int height);
 int resize_layer(Canvas *c, int index, int width, int height);
 int copy_layer(Canvas *c, int index);
+void copy_board(int width, int height, int ***board, int ***color, int ***bgcolor, Layer *layer);
 int merge_layers(Canvas *c, int len, int indices[]);
 // 下のレイヤーに結合する
 int merge_layer(Canvas *c, int index);
 // レイヤーaをレイヤーbにクリッピング(b = -1で解除)。
 int clip_layer(Canvas *c, int a, int b);
 void free_2darray(int **array);
+void free_board(Layer *layer);
 void free_layer(Layer *layer);
 void free_all_layers(Canvas *c);
