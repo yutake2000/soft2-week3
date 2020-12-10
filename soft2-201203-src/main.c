@@ -324,9 +324,8 @@ int in_board(int x, int y, Canvas *c) {
   return 1;
 }
 
-void copy_to_clipboard(Canvas *c, int x0, int y0, int w, int h) {
+void copy_to_clipboard(Canvas *c, Clipboard *clip, int x0, int y0, int w, int h) {
 
-  Clipboard *clip = c->clipboard;
   clip->width = w;
   clip->height = h;
 
@@ -353,8 +352,7 @@ void copy_to_clipboard(Canvas *c, int x0, int y0, int w, int h) {
 
 }
 
-void paste_from_clipboad(Canvas *c, int x0, int y0) {
-  Clipboard *clip = c->clipboard;
+void paste_from_clipboad(Canvas *c, Clipboard *clip, int x0, int y0) {
 
   Layer *layer = get_cur_layer(c);
   for (int i=0; i < clip->width; i++) {
@@ -920,7 +918,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     if (args == NULL)
       return ERROR;
 
-    copy_to_clipboard(c, args[0], args[1], args[2], args[3]);
+    copy_to_clipboard(c, c->clipboard, args[0], args[1], args[2], args[3]);
 
     printf("copied!\n");
     return NORMAL;
@@ -932,7 +930,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     if (args == NULL)
       return ERROR;
 
-    paste_from_clipboad(c, args[0], args[1]);
+    paste_from_clipboad(c, c->clipboard, args[0], args[1]);
 
     printf("pasted!\n");
     return NORMAL;
@@ -944,9 +942,10 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     if (args == NULL)
       return ERROR;
 
-    copy_to_clipboard(c, args[0], args[1], args[2], args[3]);
+    Clipboard *temp = construct_clipboard();
+    copy_to_clipboard(c, temp, args[0], args[1], args[2], args[3]);
     clear_rect(c, args[0], args[1], args[2], args[3]);
-    paste_from_clipboad(c, args[0] + args[4], args[1] + args[5]);
+    paste_from_clipboad(c, temp, args[0] + args[4], args[1] + args[5]);
 
     printf("moved!\n");
     return NORMAL;
@@ -959,11 +958,12 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
 
     int cur_layer_index = c->layer_index;
+    Clipboard *temp = construct_clipboard();
     for (int i=0; i < c->layer_list->size; i++) {
       c->layer_index = i;
-      copy_to_clipboard(c, args[0], args[1], args[2], args[3]);
+      copy_to_clipboard(c, temp, args[0], args[1], args[2], args[3]);
       clear_rect(c, 0, 0, c->width, c->height);
-      paste_from_clipboad(c, 0, 0);
+      paste_from_clipboad(c, temp, 0, 0);
     }
     c->layer_index = cur_layer_index;
     resize_canvas(c, args[2], args[3]);
