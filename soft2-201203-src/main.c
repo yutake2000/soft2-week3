@@ -246,28 +246,38 @@ void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1
   }
 }
 
-void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height) {
+void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height, int fill) {
 
-  // 上下の辺
-  for (int x=x0; x<x0+width; x++) {
-    draw_dot(c, x, y0);
-    draw_dot(c, x, y0+height-1);
-  }
+  if (fill) {
+    for (int x=x0; x<x0+width; x++) {
+      for (int y=y0; y<y0+height; y++) {
+        draw_dot(c, x, y);
+      }
+    }
+  } else {
+    // 上下の辺
+    for (int x=x0; x<x0+width; x++) {
+      draw_dot(c, x, y0);
+      draw_dot(c, x, y0+height-1);
+    }
 
-  // 左右の辺
-  for (int y=y0; y<y0+height; y++) {
-    draw_dot(c, x0, y);
-    draw_dot(c, x0+width-1, y);
+    // 左右の辺
+    for (int y=y0; y<y0+height; y++) {
+      draw_dot(c, x0, y);
+      draw_dot(c, x0+width-1, y);
+    }
   }
 
 }
 
-void draw_circle(Canvas *c, const int x0, const int y0, const int r) {
+void draw_circle(Canvas *c, const int x0, const int y0, const int r, int fill) {
 
   for (int x=0; x<c->width; x++) {
     for (int y=0; y<c->height; y++) {
       double dist = sqrt(pow(x-x0, 2) + pow(y - y0, 2));
-      if (r <= dist && dist < r+1) {
+      if (fill && dist < r) {
+        draw_dot(c, x, y);
+      } else if (r-1 <= dist && dist < r) {
         draw_dot(c, x, y);
       }
     }
@@ -481,6 +491,8 @@ int read_layer_index(int default_value) {
   int index = default_value;
   if (len >= 1)
     index = indices[0] - 1;
+  if (default_value == -1 && len == 0)
+    printf("too few arguments.\n");
   return index;
 }
 
@@ -524,7 +536,10 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
     }
 
-    draw_rect(c, args[0], args[1], args[2], args[3]);
+    char *option = strtok(NULL, " ");
+    int fill = (option != NULL && strcmp(option, "fill") == 0);
+
+    draw_rect(c, args[0], args[1], args[2], args[3], fill);
 
     free(args);
     printf("1 rect drawn\n");
@@ -537,7 +552,9 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
     }
 
-    draw_circle(c, args[0], args[1], args[2]);
+    char *option = strtok(NULL, " ");
+    int fill = (option != NULL && strcmp(option, "fill") == 0);
+    draw_circle(c, args[0], args[1], args[2], fill);
 
     free(args);
         printf("1 circle drawn\n");
@@ -618,15 +635,10 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     reset_canvas(c);
 
     if (his->size == 0) { // コマンドが1つもなかった場合
-
-            printf("none!\n");
-
+      printf("none!\n");
     } else if (his->size == 1) { // コマンドが1つだけだった場合
-
       his->size--;
-
-            printf("undo!\n");
-
+      printf("undo!\n");
     } else {
 
       his->size--;
@@ -640,8 +652,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
         com = com->next;
       }
 
-            printf("undo!\n");
-
+      printf("undo!\n");
     }
 
     return COMMAND;
