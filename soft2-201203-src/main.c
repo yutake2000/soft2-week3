@@ -346,7 +346,7 @@ void copy_to_clipboard(Canvas *c, int x0, int y0, int w, int h) {
 
 }
 
-void paset_from_clipboad(Canvas *c, int x0, int y0) {
+void paste_from_clipboad(Canvas *c, int x0, int y0) {
   Clipboard *clip = c->clipboard;
 
   Layer *layer = get_cur_layer(c);
@@ -925,9 +925,26 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     if (args == NULL)
       return ERROR;
 
-    paset_from_clipboad(c, args[0], args[1]);
+    paste_from_clipboad(c, args[0], args[1]);
 
     printf("pasted!\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "mv") == 0 || strcmp(s, "move") == 0) {
+
+    int *args = read_int_arguments(6);
+    if (args == NULL)
+      return ERROR;
+
+    copy_to_clipboard(c, args[0], args[1], args[2], args[3]);
+    int cur_pen = c->pen;
+    c->pen = 0;
+    draw_rect(c, args[0], args[1], args[2], args[3], 1); //空白で塗りつぶす
+    c->pen = cur_pen;
+    paste_from_clipboad(c, args[0] + args[4], args[1] + args[5]);
+
+    printf("moved!\n");
     return NORMAL;
   }
 
