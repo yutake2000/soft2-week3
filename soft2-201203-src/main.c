@@ -8,7 +8,7 @@
 
 typedef struct layer Layer;
 struct layer {
-  char **board;
+  int **board;
   int **color; // 30-37
   int **bgcolor; // 40-47
   int visible; // 表示する場合は1
@@ -101,14 +101,17 @@ int insert_layer(Canvas *c, int index, Layer *layer);
 int remove_layer(Canvas *c, int index, int freeing);
 // a番目のレイヤーをb番目に移動する。
 int move_layer(Canvas *c, int a, int b);
+int **get_2darray(int width, int height);
 // 空のレイヤーを作る。
 Layer *construct_layer(int width, int height);
+int resize_layer(Canvas *c, int index, int width, int height);
 int copy_layer(Canvas *c, int index);
 int merge_layers(Canvas *c, int len, int indices[]);
 // 下のレイヤーに結合する
 int merge_layer(Canvas *c, int index);
 // レイヤーaをレイヤーbにクリッピング(b = -1で解除)。
 int clip_layer(Canvas *c, int a, int b);
+void free_2darray(int **array);
 void free_layer(Layer *layer);
 void free_all_layers(Canvas *c);
 
@@ -204,14 +207,14 @@ Canvas *init_canvas(int width,int height, char pen)
 
 void reset_canvas(Canvas *c)
 {
-  const int width = c->width_default;
-  const int height = c->height_default;
+  c->width = c->width_default;
+  c->height = c->height_default;
   c->pen = c->pen_default;
   c->color = 0;
   free_all_layers(c);
   c->layer_index = 0;
 
-  c->layer_list->begin = construct_layer(width, height);
+  c->layer_list->begin = construct_layer(c->width, c->height);
   c->layer_list->size = 1;
 }
 
@@ -230,7 +233,7 @@ void print_canvas(FILE *fp, Canvas *c)
 {
   const int height = c->height;
   const int width = c->width;
-  char **board = get_cur_layer(c)->board;
+  int **board = get_cur_layer(c)->board;
   
   // 上の壁
   clear_line();
@@ -298,7 +301,9 @@ void rewind_screen(unsigned int line)
 }
 
 void forward_screen(unsigned int line) {
-  printf("\e[%dB", line);
+  for (int i=0; i<line; i++) {
+    printf("\n");
+  }
 }
 
 void clear_line()
@@ -485,6 +490,11 @@ int resize_canvas(Canvas *c, int width, int height) {
   if (width <= 0 || height <= 0)
     return 1;
 
+  int len = c->layer_list->size;
+  for (int i=0; i<len; i++) {
+    resize_layer(c, i, width, height);
+  }
+
   int diff = height - c->height;
 
   c->width = width;
@@ -493,7 +503,8 @@ int resize_canvas(Canvas *c, int width, int height) {
   if (diff < 0) {
     diff = -diff;
     for (int i=0; i<diff; i++) {
-            rewind_screen(1);
+      rewind_screen(1);
+      clear_line();
     }
   } else {
     for (int i=0; i<diff; i++) {
@@ -967,35 +978,65 @@ int change_layer(Canvas *c, int index) {
   return 0;
 }
 
+int **get_2darray(int width, int height) {
+  int *tmp = (int*)malloc(width * height * sizeof(int));
+  memset(tmp, 0, width * height * sizeof(int));
+  int **array = malloc(width * sizeof(int*));
+  for (int i = 0 ; i < width ; i++){
+    array[i] = tmp + i * height;
+  }
+  return array;
+}
+
 Layer *construct_layer(int width, int height) {
   Layer *layer = (Layer*)malloc(sizeof(Layer));
   layer->next = NULL;
   layer->prev = NULL;
   layer->visible = 1;
   layer->clipped = 0;
-  layer->board = (char**)malloc(width * sizeof(char*));
-  layer->color = (int**)malloc(width * sizeof(int*));
-  layer->bgcolor = (int**)malloc(width * sizeof(int*));
-
-  char *tmp = (char*)malloc(width * height * sizeof(char));
-  memset(tmp, 0, width * height * sizeof(char));
-  for (int i = 0 ; i < width ; i++){
-    layer->board[i] = tmp + i * height;
-  }
-
-  int *tmp2 = (int*)malloc(width * height * sizeof(int));
-  memset(tmp2, 0, width * height * sizeof(int));
-  for (int i = 0 ; i < width ; i++){
-    layer->color[i] = tmp2 + i * height;
-  }
-
-  int *tmp3 = (int*)malloc(width * height * sizeof(int));
-  memset(tmp3, 0, width * height * sizeof(int));
-  for (int i = 0 ; i < width ; i++){
-    layer->bgcolor[i] = tmp3 + i * height;
-  }
+  layer->board = get_2darray(width, height);
+  layer->color = get_2darray(width, height);
+  layer->bgcolor = get_2darray(width, height);
 
   return layer;
+}
+
+int resize_layer(Canvas *c, int index, int width, int height) {
+
+  int old_width = c->width;
+  int old_height = c->height;
+
+  int **new_board = get_2darray(width, height);
+  int **new_color = get_2darray(width, height);
+  int **new_bgcolor = get_2darray(width, height);
+
+  Layer *layer = get_layer(c, index);
+
+  for (int x=0; x<width; x++) {
+    for (int y=0; y<height; y++) {
+
+      if (x >= old_width || y >= old_height) {
+        new_board[x][y] = 0;
+        new_color[x][y] = 0;
+        new_bgcolor[x][y] = 0;
+      } else {
+        new_board[x][y] = layer->board[x][y];
+        new_color[x][y] = layer->color[x][y];
+        new_bgcolor[x][y] = layer->bgcolor[x][y];
+      }
+
+    }
+  }
+
+  free(layer->board);
+  free(layer->color);
+  free(layer->bgcolor);
+
+  layer->board = new_board;
+  layer->color = new_color;
+  layer->bgcolor = new_bgcolor;
+
+  return 0;
 }
 
 int copy_layer(Canvas *c, int index) {
@@ -1251,13 +1292,15 @@ int clip_layer(Canvas *c, int index, int flag) {
   return 0;
 }
 
+void free_2darray(int **array) {
+  free(array[0]);
+  free(array);
+}
+
 void free_layer(Layer *layer) {
-  free(layer->board[0]);
-  free(layer->board);
-  free(layer->color[0]);
-  free(layer->color);
-  free(layer->bgcolor[0]);
-  free(layer->bgcolor);
+  free_2darray(layer->board);
+  free_2darray(layer->color);
+  free_2darray(layer->bgcolor);
   free(layer);
 }
 
