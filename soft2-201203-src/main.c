@@ -6,114 +6,8 @@
 #include <assert.h>
 #include <math.h>
 
-typedef struct layer Layer;
-struct layer {
-  int **board;
-  int **color; // 30-37
-  int **bgcolor; // 40-47
-  int visible; // 表示する場合は1
-  int clipped; // 下のレイヤーにクリッピングされる場合は1
-  Layer *next;
-  Layer *prev;
-};
-
-typedef struct {
-  Layer *begin;
-  size_t size;
-} Layer_List;
-
-// Structure for canvas
-typedef struct
-{
-  int width;
-  int height;
-  int width_default;
-  int height_default;
-  int layer_index;
-  Layer_List *layer_list;
-  char pen;
-  char pen_default;
-  int color; // 0-7
-} Canvas;
-
-// 最大履歴と現在位置の情報は持たない
-typedef struct command Command;
-struct command {
-  char *str;
-  size_t bufsize; // このコマンドの長さ + 1 ('\0')
-  Command *next;
-};
-
-// コマンドリストの先頭へのポインタをメンバに持つ構造体としてHistoryを考える。
-// 履歴がない時点ではbegin = NULL となる。
-typedef struct {
-  Command *begin;
-  size_t bufsize; // コマンドの長さの最大値
-  size_t size; // コマンドの数
-} History;
-
-// functions for Canvas type
-Canvas *init_canvas(int width, int height, char pen);
-void reset_canvas(Canvas *c);
-void print_canvas(FILE *fp, Canvas *c);
-void free_canvas(Canvas *c);
-
-// display functions
-void rewind_screen(unsigned int line);
-void forward_screen(unsigned int line);
-void clear_line();
-void clear_screen(); // カーソル以降をすべて消去する
-
-// enum for interpret_command results
-typedef enum res{ EXIT, NORMAL, COMMAND, UNKNOWN, ERROR} Result;
-
-int max(const int a, const int b);
-int draw_dot(Canvas *c, const int x, const int y); //(x, y)がキャンバス内なら点を打つ。外なら1を返すのみ。
-void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1);
-void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height);
-void draw_circle(Canvas *c, const int x0, const int y0, const int r);
-
-int *read_int_arguments(const int count); // countの数だけコマンドの引数を読み込みその配列を返す。
-int *read_int_arguments_flex(int *len); // 可変長引数を読み込み配列を返す。長さをlenに書き込む。
-Result interpret_command(const char *command, History *his, Canvas *c);
-void save_history(const char *filename, History *his);
-int load_history(const char *filename, History *his); //エラー時は1を返す。
-
-// actualが0ならundoで取り消されていないもののうちの最後、1なら履歴全体で最後のコマンド(なければNULL)を返す。
-Command *get_last_command(History *his, const int actual);
-// command以降の履歴をすべて削除する
-void remove_commands(Command *command);
-void push_back_history(History *his, char *str);
-Command *construct_command(char *str);
-
-Layer *get_layer(Canvas *c, int index);
-Layer *get_cur_layer(Canvas *c);
-Layer *get_last_layer(Canvas *c);
-int hide_layer(Canvas *c, int index);
-int show_layer(Canvas *c, int index);
-int change_layer(Canvas *c, int index);
-// layer_listの最後に空のレイヤーを追加する。
-void add_layer(Canvas *c);
-// layerは空のレイヤーか、remove_layerでリストから切り離されているもの。
-int insert_layer(Canvas *c, int index, Layer *layer);
-// layer_listからlayerを切り離す。
-// メモリも解放する場合はfreeing=1にする。
-int remove_layer(Canvas *c, int index, int freeing);
-// a番目のレイヤーをb番目に移動する。
-int move_layer(Canvas *c, int a, int b);
-int **get_2darray(int width, int height);
-// 空のレイヤーを作る。
-Layer *construct_layer(int width, int height);
-int resize_layer(Canvas *c, int index, int width, int height);
-int copy_layer(Canvas *c, int index);
-int merge_layers(Canvas *c, int len, int indices[]);
-// 下のレイヤーに結合する
-int merge_layer(Canvas *c, int index);
-// レイヤーaをレイヤーbにクリッピング(b = -1で解除)。
-int clip_layer(Canvas *c, int a, int b);
-void free_2darray(int **array);
-void free_layer(Layer *layer);
-void free_all_layers(Canvas *c);
+#include "main.h"
+#include "layer.c"
 
 int main(int argc, char **argv)
 {
@@ -515,6 +409,81 @@ int resize_canvas(Canvas *c, int width, int height) {
   return 0;
 }
 
+Command *get_last_command(History *his, const int actual) {
+
+  if (actual) {
+
+    if (his->begin == NULL) {
+      return NULL;
+    } else {
+      Command *command = his->begin;
+      while (command->next != NULL) {
+        command = command->next;
+      }
+      return command;
+    }
+
+  } else {
+
+    if (his->size == 0) {
+      return NULL;
+    } else {
+      Command *command = his->begin;
+      for (int i=0; i < his->size-1; i++) {
+        command = command->next;
+      }
+      return command;
+    }
+
+  }
+
+}
+
+void remove_commands(Command *command) {
+  while (command != NULL) {
+    Command *temp = command;
+    command = command->next;
+
+    free(temp->str);
+    free(temp);
+  }
+}
+
+void push_back_history(History *his, char *str) {
+  Command *command = construct_command(str);
+
+  Command *node = get_last_command(his, 0);
+  if (node != NULL) {
+    remove_commands(node->next); // undoで取り消されたコマンドをすべて削除
+    node->next = command;
+  } else {
+    remove_commands(his->begin);
+    his->begin = command;
+  }
+
+  his->size++;
+}
+
+Command *construct_command(char *str) {
+
+  Command *command = (Command*)malloc(sizeof(Command));
+  command->bufsize = strlen(str) + 1;
+  command->next = NULL;
+  command->str = (char*)malloc(command->bufsize);
+  strcpy(command->str, str);
+
+  return command;
+}
+
+int read_layer_index(int default_value) {
+  int len;
+  int *indices = read_int_arguments_flex(&len);
+  int index = default_value;
+  if (len >= 1)
+    index = indices[0] - 1;
+  return index;
+}
+
 Result interpret_command(const char *command, History *his, Canvas *c)
 {
   char buf[his->bufsize];
@@ -526,9 +495,9 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   char *s = strtok(buf, " ");
 
   if (s == NULL) {
-  	s = "redo";
-  	/*
-  	    printf("none!\n");
+    s = "redo";
+    /*
+        printf("none!\n");
     return UNKNOWN;
     */
   }
@@ -602,7 +571,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   }
 
   if (strcmp(s, "animate") == 0) {
-  	s = strtok(NULL, " ");
+    s = strtok(NULL, " ");
     int result = load_history(s, his);
     if (result == 1) {
       return ERROR;
@@ -705,35 +674,33 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
     s = strtok(NULL, " ");
 
-        if (strcmp(s, "add") == 0) {
+    if (strcmp(s, "add") == 0) {
       add_layer(c);
       printf("added!\n");
     } else if (strcmp(s, "ch") == 0 || strcmp(s, "change") == 0) {
-      int *index = read_int_arguments(1);
-      if (index == NULL)
-      	return ERROR;
+      int index = read_layer_index(-1);
+      if (index == -1)
+        return ERROR;
 
-      int result = change_layer(c, *index - 1);
+      int result = change_layer(c, index);
       if (result == 1)
         return ERROR;
 
       printf("changed!\n");
     } else if (strcmp(s, "rm") == 0 || strcmp(s, "remove") == 0) {
-      int *index = read_int_arguments(1);
-      if (index == NULL)
-      	return ERROR;
+      int index = read_layer_index(c->layer_index);
 
-      int result = remove_layer(c, *index - 1, 1); // freeもする
+      int result = remove_layer(c, index, 1); // freeもする
       if (result == 1)
         return ERROR;
 
       printf("removed!\n");
     } else if (strcmp(s, "insert") == 0) {
-      int *index = read_int_arguments(1);
-      if (index == NULL)
-      	return ERROR;
+      int index = read_layer_index(-1);
+      if (index == -1)
+        return ERROR;
 
-      int result = insert_layer(c, *index - 1, construct_layer(c->width, c->height));
+      int result = insert_layer(c, index, construct_layer(c->width, c->height));
       if (result == 1)
         return ERROR;
 
@@ -741,7 +708,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     } else if (strcmp(s, "mv") == 0 || strcmp(s, "move") == 0) {
       int *indices = read_int_arguments(2);
       if (indices == NULL)
-      	return ERROR;
+        return ERROR;
 
       int result = move_layer(c, indices[0] - 1, indices[1] - 1);
       if (result == 1)
@@ -749,60 +716,48 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
       printf("moved!\n");
     } else if (strcmp(s, "show") == 0) {
-      int *index = read_int_arguments(1);
-      if (index == NULL)
-      	return ERROR;
+      int index = read_layer_index(c->layer_index);
 
       int result = 0;
-      if (*index == 0) { // 0を指定した場合はすべてのレイヤーを表示する
-      	for (int i=0; i<c->layer_list->size; i++) {
-      	  show_layer(c, i);
-      	}
+      if (index == -1) { // 0を指定した場合はすべてのレイヤーを表示する
+        for (int i=0; i<c->layer_list->size; i++) {
+          show_layer(c, i);
+        }
       } else {
-	      result = show_layer(c, *index - 1);
-	    }
+        result = show_layer(c, index);
+      }
 
       if (result == 1)
         return ERROR;
 
       printf("showed!\n");
     } else if (strcmp(s, "hide") == 0) {
-      int *index = read_int_arguments(1);
-      if (index == NULL)
-      	return ERROR;
+      int index = read_layer_index(c->layer_index);
 
       int result = 0;
-      if (*index == 0) { // 0を指定した場合は現在のレイヤー以外を非表示にする
-      	for (int i=0; i<c->layer_list->size; i++) {
-    	  if (i != c->layer_index)
-      		hide_layer(c, i);
-      	}
+      if (index == -1) { // 0を指定した場合は現在のレイヤー以外を非表示にする
+        for (int i=0; i<c->layer_list->size; i++) {
+        if (i != c->layer_index)
+          hide_layer(c, i);
+        }
       } else {
-        result = hide_layer(c, *index - 1);
-	    }
+        result = hide_layer(c, index);
+      }
 
       if (result == 1)
         return ERROR;
 
       printf("hidden!\n");
     } else if (strcmp(s, "cp") == 0 || strcmp(s, "copy") == 0) {
-      int *index = read_int_arguments(1);
-      if (index == NULL)
-      	return ERROR;
+      int index = read_layer_index(c->layer_index);
 
-      int result = copy_layer(c, *index - 1);
+      int result = copy_layer(c, index);
       if (result == 1)
         return ERROR;
 
       printf("copied!\n");
     } else if (strcmp(s, "merge") == 0) {
-      int *indices = read_int_arguments(1);
-      int index = -1;
-
-      if (indices == NULL) // 引数省略時
-      	index = c->layer_index;
-      else
-        index = indices[0] - 1;
+      int index = read_layer_index(c->layer_index);
 
       int result = merge_layer(c, index);
       if (result == 1)
@@ -812,12 +767,9 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     } else if (strcmp(s, "clip") == 0 || strcmp(s, "unclip") == 0) {
       int flag = (strcmp(s, "clip") == 0 ? 1 : 0); // clipなら1
 
-      int *index = read_int_arguments(1);
-      if (index == NULL)
-        return ERROR;
+      int index = read_layer_index(c->layer_index);
 
-      int result = clip_layer(c, *index-1, flag);
-
+      int result = clip_layer(c, index, flag);
       if (result == 1)
         return ERROR;
 
@@ -848,469 +800,4 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   }
     printf("error: unknown command.\n");
   return UNKNOWN;
-}
-
-Command *get_last_command(History *his, const int actual) {
-
-  if (actual) {
-
-    if (his->begin == NULL) {
-      return NULL;
-    } else {
-      Command *command = his->begin;
-      while (command->next != NULL) {
-        command = command->next;
-      }
-      return command;
-    }
-
-  } else {
-
-    if (his->size == 0) {
-      return NULL;
-    } else {
-      Command *command = his->begin;
-      for (int i=0; i < his->size-1; i++) {
-        command = command->next;
-      }
-      return command;
-    }
-
-  }
-
-}
-
-void remove_commands(Command *command) {
-  while (command != NULL) {
-    Command *temp = command;
-    command = command->next;
-
-    free(temp->str);
-    free(temp);
-  }
-}
-
-void push_back_history(History *his, char *str) {
-  Command *command = construct_command(str);
-
-  Command *node = get_last_command(his, 0);
-  if (node != NULL) {
-    remove_commands(node->next); // undoで取り消されたコマンドをすべて削除
-    node->next = command;
-  } else {
-    remove_commands(his->begin);
-    his->begin = command;
-  }
-
-  his->size++;
-}
-
-Command *construct_command(char *str) {
-
-  Command *command = (Command*)malloc(sizeof(Command));
-  command->bufsize = strlen(str) + 1;
-  command->next = NULL;
-  command->str = (char*)malloc(command->bufsize);
-  strcpy(command->str, str);
-
-  return command;
-}
-
-Layer *get_layer(Canvas *c, int index) {
-  size_t size = c->layer_list->size;
-  if (index >= size || index < 0) {
-    return NULL;
-  }
-
-  Layer *layer = c->layer_list->begin;
-  for (int i=0; i<index; i++) {
-    layer = layer->next;
-  }
-  return layer;
-}
-
-Layer *get_cur_layer(Canvas *c) {
-  return get_layer(c, c->layer_index);
-}
-
-Layer *get_last_layer(Canvas *c) {
-  Layer *layer = c->layer_list->begin;
-
-  assert(layer != NULL);
-
-  while (layer->next != NULL) layer = layer->next;
-
-  return layer;
-}
-
-int hide_layer(Canvas *c, int index) {
-
-  size_t size = c->layer_list->size;
-  if (index >= size) {
-    printf("out of bounds!\n");
-    return 1;
-  }
-
-  get_layer(c, index)->visible = 0;
-  return 0;
-}
-
-int show_layer(Canvas *c, int index) {
-  size_t size = c->layer_list->size;
-  if (index >= size || index < 0) {
-    printf("out of bounds!\n");
-    return 1;
-  }
-
-  get_layer(c, index)->visible = 1;
-  return 0;
-}
-
-int change_layer(Canvas *c, int index) {
-  size_t size = c->layer_list->size;
-  if (index >= size || index < 0) {
-    printf("out of bounds!\n");
-    return 1;
-  }
-
-  c->layer_index = index;
-
-  return 0;
-}
-
-int **get_2darray(int width, int height) {
-  int *tmp = (int*)malloc(width * height * sizeof(int));
-  memset(tmp, 0, width * height * sizeof(int));
-  int **array = malloc(width * sizeof(int*));
-  for (int i = 0 ; i < width ; i++){
-    array[i] = tmp + i * height;
-  }
-  return array;
-}
-
-Layer *construct_layer(int width, int height) {
-  Layer *layer = (Layer*)malloc(sizeof(Layer));
-  layer->next = NULL;
-  layer->prev = NULL;
-  layer->visible = 1;
-  layer->clipped = 0;
-  layer->board = get_2darray(width, height);
-  layer->color = get_2darray(width, height);
-  layer->bgcolor = get_2darray(width, height);
-
-  return layer;
-}
-
-int resize_layer(Canvas *c, int index, int width, int height) {
-
-  int old_width = c->width;
-  int old_height = c->height;
-
-  int **new_board = get_2darray(width, height);
-  int **new_color = get_2darray(width, height);
-  int **new_bgcolor = get_2darray(width, height);
-
-  Layer *layer = get_layer(c, index);
-
-  for (int x=0; x<width; x++) {
-    for (int y=0; y<height; y++) {
-
-      if (x >= old_width || y >= old_height) {
-        new_board[x][y] = 0;
-        new_color[x][y] = 0;
-        new_bgcolor[x][y] = 0;
-      } else {
-        new_board[x][y] = layer->board[x][y];
-        new_color[x][y] = layer->color[x][y];
-        new_bgcolor[x][y] = layer->bgcolor[x][y];
-      }
-
-    }
-  }
-
-  free(layer->board);
-  free(layer->color);
-  free(layer->bgcolor);
-
-  layer->board = new_board;
-  layer->color = new_color;
-  layer->bgcolor = new_bgcolor;
-
-  return 0;
-}
-
-int copy_layer(Canvas *c, int index) {
-
-  size_t size = c->layer_list->size;
-  if (index >= size || index < 0) {
-    printf("out of bounds!\n");
-    return 1;
-  }
-
-  const int width = c->width;
-  const int height = c->height;
-
-  Layer *layer = get_layer(c, index);
-  Layer *new_layer = construct_layer(width, height);
-
-  for (int i=0; i<width; i++) {
-    for (int j=0; j<height; j++) {
-      new_layer->board[i][j] = layer->board[i][j];
-      new_layer->color[i][j] = layer->color[i][j];
-      new_layer->bgcolor[i][j] = layer->bgcolor[i][j];
-    }
-  }
-
-  new_layer->visible = 1;
-  new_layer->clipped = layer->clipped;
-
-  insert_layer(c, c->layer_list->size, new_layer);
-
-  return 0;
-}
-
-int merge_layers(Canvas *c, int len, int indices[]) {
-
-  // バブルソート
-  for (int i=len; i>0; i--) {
-    for (int j=0; j<i-1; j++) {
-      if (indices[j] > indices[j+1]) {
-        int temp = indices[j];
-        indices[j] = indices[j+1];
-        indices[j+1] = temp;
-      }
-    }
-  }
-
-  size_t size = c->layer_list->size;
-  if (indices[len-1] >= size || indices[0] < 0) {
-    printf("out of bounds!\n");
-    return 1;
-  }
-
-  // 一番下のレイヤーに上のレイヤーを上書きしていく
-  Layer *base_layer = get_layer(c, indices[0]);
-  for (int x=0; x<c->width; x++) {
-    for (int y=0; y<c->height; y++) {
-      for (int i=1; i<len; i++) {
-        Layer *layer = get_layer(c, indices[i]);
-        if (layer->board[x][y] != 0) {
-          base_layer->board[x][y] = layer->board[x][y];
-          base_layer->color[x][y] = layer->color[x][y];
-          if (layer->bgcolor[x][y] != 0) {
-            base_layer->bgcolor[x][y] = layer->bgcolor[x][y];
-          }
-        }
-      }
-    }
-  }
-
-  // 一番下以外のレイヤーを削除
-  for (int i=1; i<len; i++) {
-    int index = indices[i] - (i-1); // 下のレイヤーが削除されるたびに上のレイヤーの番号が下がっていく
-    remove_layer(c, index, 1); // freeもする
-  }
-
-  return 0;
-}
-
-int merge_layer(Canvas *c, int index) {
-
-  size_t size = c->layer_list->size;
-  if (index > size || index < 0) {
-    printf("out of bounds!\n");
-    return 1;
-  }
-
-  // 一番下のレイヤーに上のレイヤーを上書きしていく
-  Layer *layer = get_layer(c, index);
-  Layer *base_layer = layer->prev;
-
-  if (base_layer == NULL) {
-    printf("none!\n");
-    return 1;
-  }
-
-  // 自身がクリッピングされていて、かつすぐ下のレイヤーがクリッピング元である場合
-  // それ以外の場合はクリッピングを無視して結合する
-  // - 両方クリッピングされていない場合
-  // - 下のレイヤーのみクリッピングされている場合
-  // - 両方がさらに下のレイヤーにクリッピングされている場合
-  int clipped = (layer->clipped && !base_layer->clipped);
-
-  for (int x=0; x<c->width; x++) {
-    for (int y=0; y<c->height; y++) {
-
-      // 何も書かれていない
-      if (layer->board[x][y] == 0)
-        continue;
-
-      // クリッピング元に何も書かれていない
-      if (clipped && base_layer->board[x][y] == 0)
-        continue;
-
-      base_layer->board[x][y] = layer->board[x][y];
-      base_layer->color[x][y] = layer->color[x][y];
-
-      if (layer->bgcolor[x][y] != 0) {
-        base_layer->bgcolor[x][y] = layer->bgcolor[x][y];
-      }
-
-    }
-  }
-
-  remove_layer(c, index, 1); //freeもする
-
-  return 0;
-}
-
-void add_layer(Canvas *c) {
-  Layer *last = get_last_layer(c);
-  assert(last != NULL);
-
-  Layer *new = construct_layer(c->width, c->height);
-
-  last->next = new;
-  new->prev = last;
-
-  c->layer_list->size++;
-}
-
-int insert_layer(Canvas *c, int index, Layer *layer) {
-
-  // index = size はOK
-  size_t size = c->layer_list->size;
-  if (index > size || index < 0) {
-    printf("out of bounds!\n");
-    return 1;
-  }
-
-  if (index == c->layer_list->size) { // 最後に移動する場合
-    Layer *last = get_last_layer(c);
-    last->next = layer;
-
-    layer->prev = last;
-    layer->next = NULL;
-  } else {
-    Layer *next_layer = get_layer(c, index);
-
-    // 前のレイヤーと接続
-    if (index == 0) {
-      c->layer_list->begin = layer;
-      layer->prev = NULL;
-    } else {
-      next_layer->prev->next = layer;
-      layer->prev = next_layer->prev;
-    }
-
-    // 後ろのレイヤーと接続
-    next_layer->prev = layer;
-    layer->next = next_layer;
-  }
-
-  c->layer_list->size++;
-
-  return 0;
-}
-
-int remove_layer(Canvas *c, int index, int freeing) {
-
-  size_t size = c->layer_list->size;
-  if (index >= size || index < 0) {
-    printf("out of bounds!\n");
-    return 1;
-  }
-  
-  Layer *layer = get_layer(c, index);
-
-  if (index == 0 && layer->next == NULL) {
-    printf("Can't remove all layers.\n");
-    return 1;
-  }
-
-  if (layer->prev != NULL) {
-    layer->prev->next = layer->next;
-  }
-
-  if (layer->next != NULL) {
-    layer->next->prev = layer->prev;
-  }
-
-  if (index == 0) {
-    c->layer_list->begin = layer->next;
-  }
-
-  if (freeing) { // 一時的にリストから切り離すときはメモリを解放しない
-    free_layer(layer);
-  }
-
-  c->layer_list->size--;
-
-  if (c->layer_index >= c->layer_list->size) { // 最後のレイヤーを消した場合はその一つ前のレイヤーを表示する
-    change_layer(c, c->layer_list->size - 1);
-  }
-
-  return 0;
-}
-
-int move_layer(Canvas *c, int a, int b) {
-
-  size_t size = c->layer_list->size;
-  if (a >= size || b >= size || a < 0 || b < 0) {
-    printf("out of bounds!\n");
-    return 1;
-  }
-  
-  Layer *cur_layer = get_cur_layer(c);
-  Layer *layer = get_layer(c, a);
-
-  // 一度リストから切り離し挿入する
-  remove_layer(c, a, 0); // freeはしない
-  insert_layer(c, b, layer);
-
-  // 現在表示してるレイヤーがずれないように修正
-  for (int i=0; i<c->layer_list->size; i++) {
-    if (get_layer(c, i) == cur_layer) {
-      c->layer_index = i;
-    }
-  }
-
-  return 0;
-}
-
-int clip_layer(Canvas *c, int index, int flag) {
-
-  // b = -1の場合はクリッピングを解除するのでエラーにしない
-  size_t size = c->layer_list->size;
-  if (index >= size || index < 0) {
-    printf("out of bounds!\n");
-    return 1;
-  }
-
-  get_layer(c, index)->clipped = flag;
-
-  return 0;
-}
-
-void free_2darray(int **array) {
-  free(array[0]);
-  free(array);
-}
-
-void free_layer(Layer *layer) {
-  free_2darray(layer->board);
-  free_2darray(layer->color);
-  free_2darray(layer->bgcolor);
-  free(layer);
-}
-
-void free_all_layers(Canvas *c) {
-  Layer *layer = c->layer_list->begin;
-
-  while(layer != NULL) {
-    Layer *temp = layer;
-    layer = layer->next;
-
-    free_layer(temp);
-  }
 }
