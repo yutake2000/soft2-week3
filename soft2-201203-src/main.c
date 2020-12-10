@@ -658,6 +658,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
         com = com->next;
       }
 
+      clear_line();
       printf("undo!\n");
     }
 
@@ -680,6 +681,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       interpret_command(last->str, his, c);
       rewind_screen(1);
 
+      clear_line();
       printf("redo!\n");
     } else {
             printf("none!\n");
@@ -693,6 +695,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
     if (strcmp(s, "add") == 0) {
       add_layer(c);
+      change_layer(c, c->layer_list->size-1);
       printf("added!\n");
     } else if (strcmp(s, "ch") == 0 || strcmp(s, "change") == 0) {
       int index = read_layer_index(-1);
