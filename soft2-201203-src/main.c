@@ -48,11 +48,11 @@ int main(int argc, char **argv)
     print_canvas(fp,c);
     printf("Layer %d/%zu | ", c->layer_index + 1, c->layer_list->size);
     if (c->pen == ' ') { // マーカーの場合
-      printf("pen \e[%dm   \e[0m", c->color + 40);
+      printf("marker \e[48;5;%dm   \e[0m", c->color);
     } else if (c->pen == 0) {
       printf("eraser");
     } else {
-      printf("pen \e[%dm%c%c%c\e[0m", c->color + 30, c->pen, c->pen, c->pen);
+      printf("pen \e[38;5;%dm%c%c%c\e[0m", c->color, c->pen, c->pen, c->pen);
     }
     Command *last = get_last_command(his, 0);
     if (last != NULL) {
@@ -118,9 +118,9 @@ void reset_canvas(Canvas *c)
 
 void print_char(char c, int color, int bgcolor, FILE *fp) {
 
-  fprintf(fp, "\e[%dm", color);
+  fprintf(fp, "\e[38;5;%dm", color);
   if (bgcolor != 0) {
-    fprintf(fp, "\e[%dm", bgcolor);
+    fprintf(fp, "\e[48;5;%dm", bgcolor);
   }
   fputc(c, fp);
   fprintf(fp, "\e[0m");
@@ -229,14 +229,14 @@ int draw_dot(Canvas *c, const int x, const int y) {
 
   if (c->pen == ' ') { // マーカーの場合
     layer->board[x][y] = ' ';
-    layer->bgcolor[x][y] = c->color + 40; // \e[40mからが背景色指定
+    layer->bgcolor[x][y] = c->color; // \e[40mからが背景色指定
   } else if (c->pen == 0) { // 消しゴムの場合
     layer->board[x][y] = 0;
     layer->color[x][y] = 0;
     layer->bgcolor[x][y] = 0;
   } else {
     layer->board[x][y] = c->pen;
-    layer->color[x][y] = c->color + 30; // \e[30mからが文字色指定
+    layer->color[x][y] = c->color; // \e[30mからが文字色指定
   }
 
   return 0;
