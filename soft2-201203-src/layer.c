@@ -71,7 +71,6 @@ int **make_2darray(int width, int height) {
 }
 
 int **copy_2darray(int width, int height, int **array) {
-
   int **new_array = make_2darray(width, height);
   for (int x=0; x<width; x++) {
     for (int y=0; y<height; y++) {
@@ -82,10 +81,14 @@ int **copy_2darray(int width, int height, int **array) {
   return new_array;
 }
 
-void copy_board(int width, int height, int ***board, int ***color, int ***bgcolor, Layer *layer) {
-  *board = copy_2darray(width, height, layer->board);
-  *color = copy_2darray(width, height, layer->color);
-  *bgcolor = copy_2darray(width, height, layer->bgcolor);
+void copy_board(int width, int height, int **board, int **color, int **bgcolor, Layer *layer) {
+  for (int x=0; x<width; x++) {
+    for (int y=0; y<height; y++) {
+      board[x][y] = layer->board[x][y];
+      color[x][y] = layer->color[x][y];
+      bgcolor[x][y] = layer->bgcolor[x][y];
+    }
+  }
 }
 
 Layer *construct_layer(int width, int height) {
@@ -153,7 +156,13 @@ int copy_layer(Canvas *c, int index) {
   Layer *layer = get_layer(c, index);
   Layer *new_layer = construct_layer(width, height);
 
-  copy_board(width, height, &new_layer->board, &new_layer->color, &new_layer->bgcolor, layer);
+  for (int x=0; x<width; x++) {
+    for (int y=0; y<height; y++) {
+      new_layer->board[x][y] = layer->board[x][y];
+      new_layer->color[x][y] = layer->color[x][y];
+      new_layer->bgcolor[x][y] = layer->bgcolor[x][y];
+    }
+  }
 
   new_layer->visible = 1;
   new_layer->clipped = layer->clipped;

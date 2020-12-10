@@ -305,11 +305,22 @@ int in_board(int x, int y, Canvas *c) {
 
 void copy_and_paste(Canvas *c, int x0, int y0, int w, int h, int x1, int y1) {
 
-  int **board, **color, **bgcolor;
-  copy_board(c->width, c->height, &board, &color, &bgcolor, get_cur_layer(c));
+  int width = c->width;
+  int height = c->height;
+
+  int board[width][height];
+  int color[width][height];
+  int bgcolor[width][height];
 
   Layer *layer = get_cur_layer(c);
-
+  for (int x=0; x<width; x++) {
+    for (int y=0; y<height; y++) {
+      board[x][y] = layer->board[x][y];
+      color[x][y] = layer->color[x][y];
+      bgcolor[x][y] = layer->bgcolor[x][y];
+    }
+  }
+  
   int dx = x1 - x0;
   int dy = y1 - y0;
   for (int x=x0; x<x0+w; x++) {
@@ -328,11 +339,13 @@ void copy_and_paste(Canvas *c, int x0, int y0, int w, int h, int x1, int y1) {
     }
   }
 
-  free_board(layer);
-
-  layer->board = board;
-  layer->color = color;
-  layer->bgcolor = bgcolor;
+  for (int x=0; x<width; x++) {
+    for (int y=0; y<height; y++) {
+      layer->board[x][y] = board[x][y];
+      layer->color[x][y] = color[x][y];
+      layer->bgcolor[x][y] = bgcolor[x][y];
+    }
+  }
 
 }
 
@@ -885,6 +898,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
     copy_and_paste(c, args[0], args[1], args[2], args[3], args[4], args[5]);
 
+    printf("copied!\n");
     return NORMAL;
   }
 

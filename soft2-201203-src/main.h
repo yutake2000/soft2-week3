@@ -100,7 +100,7 @@ int **get_2darray(int width, int height);
 Layer *construct_layer(int width, int height);
 int resize_layer(Canvas *c, int index, int width, int height);
 int copy_layer(Canvas *c, int index);
-void copy_board(int width, int height, int ***board, int ***color, int ***bgcolor, Layer *layer);
+void copy_board(int width, int height, int **board, int **color, int **bgcolor, Layer *layer);
 int merge_layers(Canvas *c, int len, int indices[]);
 // 下のレイヤーに結合する
 int merge_layer(Canvas *c, int index);
