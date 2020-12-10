@@ -83,6 +83,18 @@ int main(int argc, char **argv)
   return 0;
 }
 
+Clipboard *construct_clipboard() {
+  Clipboard *clipboard = (Clipboard*)malloc(sizeof(Clipboard));
+
+  clipboard->width = 0;
+  clipboard->height = 0;
+  clipboard->board = NULL;
+  clipboard->color = NULL;
+  clipboard->bgcolor = NULL;
+
+  return clipboard;
+}
+
 Canvas *init_canvas(int width,int height, char pen)
 {
   Canvas *new = (Canvas *)malloc(sizeof(Canvas));
@@ -95,10 +107,10 @@ Canvas *init_canvas(int width,int height, char pen)
   new->layer_list->begin = construct_layer(width, height);
   new->layer_list->size = 1;
   new->layer_index = 0;
-  
   new->pen = pen;
   new->pen_default = pen;
   new->color = 0;
+  new->clipboard = construct_clipboard();
   return new;
 }
 
@@ -114,6 +126,8 @@ void reset_canvas(Canvas *c)
 
   c->layer_list->begin = construct_layer(c->width, c->height);
   c->layer_list->size = 1;
+
+  c->clipboard = construct_clipboard();
 }
 
 void print_char(char c, int color, int bgcolor, FILE *fp) {
@@ -303,50 +317,53 @@ int in_board(int x, int y, Canvas *c) {
   return 1;
 }
 
-void copy_and_paste(Canvas *c, int x0, int y0, int w, int h, int x1, int y1) {
+void copy_to_clipboard(Canvas *c, int x0, int y0, int w, int h) {
 
-  int width = c->width;
-  int height = c->height;
+  Clipboard *clip = c->clipboard;
+  clip->width = w;
+  clip->height = h;
 
-  int board[width][height];
-  int color[width][height];
-  int bgcolor[width][height];
+  free_2darray(clip->board);
+  free_2darray(clip->color);
+  free_2darray(clip->bgcolor);
+
+  clip->board = make_2darray(w, h);
+  clip->color = make_2darray(w, h);
+  clip->bgcolor = make_2darray(w, h);
 
   Layer *layer = get_cur_layer(c);
-  for (int x=0; x<width; x++) {
-    for (int y=0; y<height; y++) {
-      board[x][y] = layer->board[x][y];
-      color[x][y] = layer->color[x][y];
-      bgcolor[x][y] = layer->bgcolor[x][y];
-    }
-  }
-  
-  int dx = x1 - x0;
-  int dy = y1 - y0;
-  for (int x=x0; x<x0+w; x++) {
-    for (int y=y0; y<y0+h; y++) {
+  for (int i=0; i < w; i++) {
+    for (int j=0; j < h; j++) {
+      int x = x0 + i;
+      int y = y0 + j;
       if (!in_board(x, y, c))
         continue;
+      clip->board[i][j] = layer->board[x][y];
+      clip->color[i][j] = layer->color[x][y];
+      clip->bgcolor[i][j] = layer->bgcolor[x][y];
+    }
+  }
 
-      int nx = x + dx;
-      int ny = y + dy;
-      if (!in_board(nx, ny, c))
+}
+
+void paset_from_clipboad(Canvas *c, int x0, int y0) {
+  Clipboard *clip = c->clipboard;
+
+  Layer *layer = get_cur_layer(c);
+  for (int i=0; i < clip->width; i++) {
+    for (int j=0; j < clip->height; j++) {
+      int x = x0 + i;
+      int y = y0 + j;
+      if (!in_board(x, y, c))
         continue;
-
-      board[nx][ny] = layer->board[x][y];
-      color[nx][ny] = layer->color[x][y];
-      bgcolor[nx][ny] = layer->bgcolor[x][y];
+      if (clip->board[i][j] == 0)
+        continue;
+      layer->board[x][y] = clip->board[i][j];
+      layer->color[x][y] = clip->color[i][j];
+      if (clip->bgcolor[i][j] != 0)
+        layer->bgcolor[x][y] = clip->bgcolor[i][j];
     }
   }
-
-  for (int x=0; x<width; x++) {
-    for (int y=0; y<height; y++) {
-      layer->board[x][y] = board[x][y];
-      layer->color[x][y] = color[x][y];
-      layer->bgcolor[x][y] = bgcolor[x][y];
-    }
-  }
-
 }
 
 void save_history(const char *filename, History *his)
@@ -892,13 +909,25 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
   if (strcmp(s, "copy") == 0) {
 
-    int *args = read_int_arguments(6);
+    int *args = read_int_arguments(4);
     if (args == NULL)
       return ERROR;
 
-    copy_and_paste(c, args[0], args[1], args[2], args[3], args[4], args[5]);
+    copy_to_clipboard(c, args[0], args[1], args[2], args[3]);
 
     printf("copied!\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "paste") == 0) {
+
+    int *args = read_int_arguments(2);
+    if (args == NULL)
+      return ERROR;
+
+    paset_from_clipboad(c, args[0], args[1]);
+
+    printf("pasted!\n");
     return NORMAL;
   }
 

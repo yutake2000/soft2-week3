@@ -14,6 +14,14 @@ typedef struct {
   size_t size;
 } Layer_List;
 
+typedef struct {
+  int **board;
+  int **color;
+  int **bgcolor;
+  int width;
+  int height;
+} Clipboard;
+
 // Structure for canvas
 typedef struct
 {
@@ -27,6 +35,7 @@ typedef struct
   char pen;
   char pen_default;
   int color; // 0-7
+  Clipboard *clipboard; // コピーしたものを保存する
 } Canvas;
 
 // 最大履歴と現在位置の情報は持たない

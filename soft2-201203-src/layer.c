@@ -396,6 +396,8 @@ int clip_layer(Canvas *c, int index, int flag) {
 }
 
 void free_2darray(int **array) {
+  if (array == NULL)
+    return;
   free(array[0]);
   free(array);
 }
