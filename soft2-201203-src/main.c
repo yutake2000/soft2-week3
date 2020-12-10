@@ -294,6 +294,13 @@ void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int
 
 }
 
+void clear_rect(Canvas *c, int x0, int y0, int width, int height) {
+  int cur_pen = c->pen;
+  c->pen = 0;
+  draw_rect(c, x0, y0, width, height, 1);
+  c->pen = cur_pen;
+}
+
 void draw_circle(Canvas *c, const int x0, const int y0, const int r, int fill) {
 
   for (int x=0; x<c->width; x++) {
@@ -938,13 +945,30 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
 
     copy_to_clipboard(c, args[0], args[1], args[2], args[3]);
-    int cur_pen = c->pen;
-    c->pen = 0;
-    draw_rect(c, args[0], args[1], args[2], args[3], 1); //空白で塗りつぶす
-    c->pen = cur_pen;
+    clear_rect(c, args[0], args[1], args[2], args[3]);
     paste_from_clipboad(c, args[0] + args[4], args[1] + args[5]);
 
     printf("moved!\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "trim") == 0) {
+
+    int *args = read_int_arguments(4);
+    if (args == NULL)
+      return ERROR;
+
+    int cur_layer_index = c->layer_index;
+    for (int i=0; i < c->layer_list->size; i++) {
+      c->layer_index = i;
+      copy_to_clipboard(c, args[0], args[1], args[2], args[3]);
+      clear_rect(c, 0, 0, c->width, c->height);
+      paste_from_clipboad(c, 0, 0);
+    }
+    c->layer_index = cur_layer_index;
+    resize_canvas(c, args[2], args[3]);
+
+    printf("trimmed!\n");
     return NORMAL;
   }
 
