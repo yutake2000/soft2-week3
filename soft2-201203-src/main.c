@@ -116,6 +116,7 @@ Canvas *init_canvas(int width,int height, char pen)
   new->layer_index = 0;
   new->pen = pen;
   new->pen_default = pen;
+  new->pen_size = 1;
   new->color = 0;
   new->clipboard = construct_clipboard();
   return new;
@@ -127,6 +128,7 @@ void reset_canvas(Canvas *c)
   c->height = c->height_default;
   c->aspect = 1;
   c->pen = c->pen_default;
+  c->pen_size = 1;
   c->color = 0;
   free_all_layers(c);
   c->layer_index = 0;
@@ -273,7 +275,14 @@ void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1
   for (int i = 1; i <= n; i++) {
     double x = (x0 + 0.5) + i * (x1 - x0) / (double)n;
     double y = (y0 + 0.5) + i * (y1 - y0) / (double)n;
-    draw_dot(c, (int)x, (int)y);
+    for (int j=0; j < c->pen_size; j++) {
+      for (int k=0; k<=j; k++) {
+        draw_dot(c, (int)x + k, (int)y - j + k);
+        draw_dot(c, (int)x + k, (int)y + j - k);
+        draw_dot(c, (int)x - k, (int)y - j + k);
+        draw_dot(c, (int)x - k, (int)y + j - k);
+      }
+    }
     // ぴったり境界のときは2点打つ
     if (x == (int)x) {
       draw_dot(c, x-1, y);
@@ -295,14 +304,18 @@ void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int
   } else {
     // 上下の辺
     for (int x=x0; x<x0+width; x++) {
-      draw_dot(c, x, y0);
-      draw_dot(c, x, y0+height-1);
+      for (int j=0; j < c->pen_size; j++) {
+        draw_dot(c, x, y0 + j);
+        draw_dot(c, x, y0+height-1 - j);
+      }
     }
 
     // 左右の辺
     for (int y=y0; y<y0+height; y++) {
-      draw_dot(c, x0, y);
-      draw_dot(c, x0+width-1, y);
+      for (int i=0; i < c->pen_size; i++) {
+        draw_dot(c, x0 + i, y);
+        draw_dot(c, x0+width-1 - i, y);
+      }
     }
   }
 
@@ -322,7 +335,7 @@ void draw_circle(Canvas *c, const int x0, const int y0, const int r, int fill) {
       double dist = sqrt(pow(x-x0, 2) + pow(y - y0, 2));
       if (fill && dist < r) {
         draw_dot(c, x, y);
-      } else if (r-1 <= dist && dist < r) {
+      } else if (r - c->pen_size <= dist && dist < r) {
         draw_dot(c, x, y);
       }
     }
@@ -346,7 +359,7 @@ void draw_sector(Canvas *c, int x0, int y0, int r, int theta0, int theta1, int f
 
       if (fill && dist < r) {
         draw_dot(c, x, y);
-      } else if (r-1 <= dist && dist < r) {
+      } else if (r - c->pen_size <= dist && dist < r) {
         draw_dot(c, x, y);
       }
     }
@@ -834,6 +847,18 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     c->pen = s[0];
 
     printf("changed!\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "pensize") == 0) {
+    int *args = read_int_arguments(1);
+    if (args == NULL)
+      return ERROR;
+
+    if (args[0] < 1)
+      args[0] = 1;
+    c->pen_size = args[0];
+    printf("pen size: %d\n", c->pen_size);
     return NORMAL;
   }
 

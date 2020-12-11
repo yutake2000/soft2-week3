@@ -34,6 +34,7 @@ typedef struct
   Layer_List *layer_list;
   char pen;
   char pen_default;
+  int pen_size;
   int color; // 0-7
   Clipboard *clipboard; // コピーしたものを保存する
 } Canvas;
