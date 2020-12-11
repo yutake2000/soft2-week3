@@ -25,6 +25,61 @@ Layer *get_last_layer(Canvas *c) {
   return layer;
 }
 
+int reverse_layer(Canvas *c, int index, char *mode) {
+
+  size_t size = c->layer_list->size;
+  if (index >= size) {
+    printf("out of bounds!\n");
+    return 1;
+  }
+
+  Layer *layer = get_layer(c, index);
+  Clipboard *clip = construct_clipboard();
+  int w = c->width;
+  int h = c->height;
+  copy_to_clipboard(c, clip, 0, 0, w, h);
+  if (strcmp(mode, "vertical") == 0) {
+    for (int x=0; x<w; x++) {
+      for (int y=0; y<h; y++) {
+        layer->board[x][y] = clip->board[x][h-1-y];
+        layer->color[x][y] = clip->color[x][h-1-y];
+        layer->bgcolor[x][y] = clip->bgcolor[x][h-1-y];
+      }
+    }
+  } else if (strcmp(mode, "horizontal") == 0) {
+    for (int x=0; x<w; x++) {
+      for (int y=0; y<h; y++) {
+        layer->board[x][y] = clip->board[w-1-x][y];
+        layer->color[x][y] = clip->color[w-1-x][y];
+        layer->bgcolor[x][y] = clip->bgcolor[w-1-x][y];
+      }
+    }
+  } else if (strcmp(mode, "diagonal") == 0) {
+    if (w != h) {
+      printf("Not square!\n");
+      return 1;
+    }
+
+    for (int x=0; x<w; x++) {
+      for (int y=0; y<h; y++) {
+        int diff = x - y;
+        int xsum = (w-1) + diff;
+        int ysum = (h-1) - diff;
+        layer->board[x][y] = clip->board[xsum-x][ysum-y];
+        layer->color[x][y] = clip->color[xsum-x][ysum-y];
+        layer->bgcolor[x][y] = clip->bgcolor[xsum-x][ysum-y];
+      }
+    }
+  } else {
+    printf("No such mode!\n");
+    free_clipboard(clip);
+    return 1;
+  }
+
+  free_clipboard(clip);
+  return 0;
+}
+
 int hide_layer(Canvas *c, int index) {
 
   size_t size = c->layer_list->size;

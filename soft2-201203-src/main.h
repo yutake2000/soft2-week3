@@ -70,11 +70,15 @@ void clear_screen(); // カーソル以降をすべて消去する
 typedef enum res{ EXIT, NORMAL, COMMAND, UNKNOWN, ERROR} Result;
 
 int max(const int a, const int b);
+int in_board(int x, int y, Canvas *c);
 int draw_dot(Canvas *c, const int x, const int y); //(x, y)がキャンバス内なら点を打つ。外なら1を返すのみ。
 void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1);
 void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height, int fill);
 void draw_circle(Canvas *c, const int x0, const int y0, const int r, int fill);
-void copy_and_paste(Canvas *c, int x0, int y0, int w, int h, int x1, int y1);
+void copy_to_clipboard(Canvas *c, Clipboard *clip, int x0, int y0, int w, int h);
+void paste_from_clipboard(Canvas *c, Clipboard *clip, int x0, int y0);
+Clipboard *construct_clipboard();
+void free_clipboard(Clipboard *clip);
 
 int *read_int_arguments(const int count); // countの数だけコマンドの引数を読み込みその配列を返す。
 int *read_int_arguments_flex(int *len); // 可変長引数を読み込み配列を返す。長さをlenに書き込む。
@@ -92,6 +96,7 @@ Command *construct_command(char *str);
 Layer *get_layer(Canvas *c, int index);
 Layer *get_cur_layer(Canvas *c);
 Layer *get_last_layer(Canvas *c);
+int reverse_layer(Canvas *c, int index, char *mode);
 int hide_layer(Canvas *c, int index);
 int show_layer(Canvas *c, int index);
 int change_layer(Canvas *c, int index);

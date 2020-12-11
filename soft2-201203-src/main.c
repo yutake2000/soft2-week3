@@ -95,6 +95,13 @@ Clipboard *construct_clipboard() {
   return clipboard;
 }
 
+void free_clipboard(Clipboard *clip) {
+  free_2darray(clip->board);
+  free_2darray(clip->color);
+  free_2darray(clip->bgcolor);
+  free(clip);
+}
+
 Canvas *init_canvas(int width,int height, char pen)
 {
   Canvas *new = (Canvas *)malloc(sizeof(Canvas));
@@ -311,6 +318,28 @@ void draw_circle(Canvas *c, const int x0, const int y0, const int r, int fill) {
       } else if (r-1 <= dist && dist < r) {
         draw_dot(c, x, y);
       }
+    }
+  }
+
+}
+
+void backet(Canvas *c, Layer *layer, int x0, int y0, int pen, int color, int bgcolor, int strict) {
+
+  draw_dot(c, x0, y0);
+  for (int dx=-1; dx<=1; dx++) {
+    for (int dy=-1; dy<=1; dy++) {
+
+      int nx = x0 + dx;
+      int ny = y0 + dy;
+      if (!in_board(nx, ny, c))
+        continue;
+      if (strict && (dx != 0 && dy != 0))
+        continue;
+
+      if (layer->board[nx][ny] == pen && layer->color[nx][ny] == color && bgcolor == layer->bgcolor[nx][ny]) {
+        backet(c, layer, nx, ny, pen, color, bgcolor, strict);
+      }
+
     }
   }
 
@@ -723,6 +752,24 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     return NORMAL;
   }
 
+  if (strcmp(s, "backet") == 0) {
+
+    int *args = read_int_arguments(2);
+    if (args == NULL)
+      return ERROR;
+
+    Layer *layer = get_cur_layer(c);
+    int x = args[0];
+    int y = args[1];
+    char *mode = strtok(NULL, " ");
+    int strict = (mode != NULL && strcmp(mode,  "strict") == 0);
+
+    backet(c, layer, x, y, layer->board[x][y], layer->color[x][y], layer->bgcolor[x][y], strict);
+
+    printf("done!\n");
+    return NORMAL;
+  }
+
   // 実際にはコマンドを削除せずに、his->sizeを減らす
   if (strcmp(s, "undo") == 0) {
     reset_canvas(c);
@@ -969,6 +1016,21 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     resize_canvas(c, args[2], args[3]);
 
     printf("trimmed!\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "reverse") == 0) {
+
+    char *mode = strtok(NULL, " ");
+    if (mode == NULL)
+      return ERROR;
+
+    int index = read_layer_index(c->layer_index);
+    int result = reverse_layer(c, index, mode);
+    if (result == 1)
+      return ERROR;
+
+    printf("reversed!\n");
     return NORMAL;
   }
 
