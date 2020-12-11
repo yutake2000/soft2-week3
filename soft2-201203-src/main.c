@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 
   int width;
   int height;
-  if (argc != 3){
+  if (argc < 3){
     fprintf(stderr,"usage: %s <width> <height>\n",argv[0]);
     return EXIT_FAILURE;
   } else{
@@ -33,9 +33,11 @@ int main(int argc, char **argv)
       return EXIT_FAILURE;
     }
     width = (int)w;
-    height = (int)h;    
+    height = (int)h;
   }
   char pen = '*';
+
+  int pallet = (argc >= 4 && strcmp(argv[3], "pallet") == 0);
 
   FILE *fp;
   char buf[his->bufsize];
@@ -47,6 +49,9 @@ int main(int argc, char **argv)
 
     print_canvas(fp,c);
     print_history(c, his);
+    if (pallet)
+      print_pallet(c);
+
     printf("Layer %d/%zu | ", c->layer_index + 1, c->layer_list->size);
     if (c->pen == ' ') { // マーカーの場合
       printf("marker \e[48;5;%dm   \e[0m", c->color);
@@ -253,6 +258,40 @@ void print_history(Canvas *c, History *his) {
 
 }
 
+void print_pallet(Canvas *c) {
+
+  if (c->height < 16 - 2)
+    return;
+
+  rewind_screen(c->height + 2);
+
+  for (int i=0; i<16; i++) {
+    move_cursor(c->width * c->aspect + 3);
+    for (int j=0; j<16; j++) {
+      int color = i * 16 + j;
+      printf("\e[38;5;%dm%3d\e[0m ", color, color);
+    }
+    printf("\n");
+  }
+
+  if (c->height < 32 - 2) {
+    forward_screen(c->height + 2 - 16);
+    return;
+  }
+
+  for (int i=0; i<16; i++) {
+    move_cursor(c->width * c->aspect + 3);
+    for (int j=0; j<16; j++) {
+      int color = i * 16 + j;
+      printf("\e[48;5;%dm%3d\e[0m ", color, color);
+    }
+    printf("\n");
+  }
+
+  forward_screen(c->height + 2 - 32);
+
+}
+
 void free_canvas(Canvas *c)
 {
   free_all_layers(c);
@@ -266,6 +305,7 @@ void rewind_screen(unsigned int line)
 }
 
 void forward_screen(unsigned int line) {
+  if (line <= 0) return;
   for (int i=0; i<line; i++) {
     printf("\n");
   }

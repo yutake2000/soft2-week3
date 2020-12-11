@@ -60,6 +60,7 @@ Canvas *init_canvas(int width, int height, char pen);
 void reset_canvas(Canvas *c);
 void print_canvas(FILE *fp, Canvas *c);
 void print_history(Canvas *c, History *his);
+void print_pallet(Canvas *c);
 void free_canvas(Canvas *c);
 
 // display functions
