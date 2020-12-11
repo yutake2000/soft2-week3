@@ -273,8 +273,11 @@ void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1
   const int n = max(abs(x1 - x0), abs(y1 - y0));
   draw_dot(c, x0, y0);
   for (int i = 1; i <= n; i++) {
+    // セルの中心を座標(x, y)とするので +0.5
     double x = (x0 + 0.5) + i * (x1 - x0) / (double)n;
     double y = (y0 + 0.5) + i * (y1 - y0) / (double)n;
+
+    // マンハッタン距離がpen_size以下の部分を塗りつぶす
     for (int j=0; j < c->pen_size; j++) {
       for (int k=0; k<=j; k++) {
         draw_dot(c, (int)x + k, (int)y - j + k);
@@ -283,6 +286,7 @@ void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1
         draw_dot(c, (int)x - k, (int)y + j - k);
       }
     }
+
     // ぴったり境界のときは2点打つ
     if (x == (int)x) {
       draw_dot(c, x-1, y);
@@ -390,7 +394,6 @@ void backet(Canvas *c, Layer *layer, int x0, int y0, int pen, int color, int bgc
 }
 
 void draw_polygon(Canvas *c, int len, int xs[], int ys[], int fill) {
-
   
   for (int i=0; i<len; i++) {
     draw_line(c, xs[i], ys[i], xs[(i+1)%len], ys[(i+1)%len]);
@@ -398,15 +401,21 @@ void draw_polygon(Canvas *c, int len, int xs[], int ys[], int fill) {
 
   if (fill) {
 
+    // Crossing Number Algorithm
+    // https://www.nttpc.co.jp/technology/number_algorithm.html
     for (int x=0; x < c->width; x++) {
       for (int y=0; y < c->height; y++) {
         // (x, y)から右に伸ばした半直線と多角形の共有点の個数
+        // ただし、辺の下端は含み、上端は含まない
         int count = 0;
         for (int i=0; i<len; i++) {
+          // 座標(x, y)はマスの中央とする
           double x1 = xs[i] + 0.5;
           double x2 = xs[(i+1)%len] + 0.5;
           double y1 = ys[i] + 0.5;
           double y2 = ys[(i+1)%len] + 0.5;
+
+          // 交わらない場合(水平な辺とは交わらない)
           if (y1 < y && y2 < y)
             continue;
           if (y < y1 && y < y2)
@@ -414,12 +423,15 @@ void draw_polygon(Canvas *c, int len, int xs[], int ys[], int fill) {
           if (y1 == y2)
             continue;
 
+          // 横に伸ばした直線と多角形の共有点のx座標
           double xc = (fabs(y2 - y) * x1 + fabs(y1 - y) * x2) / (double)fabs(y2 - y1);
 
+          // 半直線と交わっている場合(ただし点と重なっている場合は除く)
           if (x + 0.5 < xc)
             count++;
         }
 
+        // 奇数なら多角形の内側
         if (count % 2 == 1) {
           draw_dot(c, x, y);
         }
