@@ -58,14 +58,16 @@ typedef struct {
 // functions for Canvas type
 Canvas *init_canvas(int width, int height, char pen);
 void reset_canvas(Canvas *c);
+void free_canvas(Canvas *c);
+
 void print_canvas(FILE *fp, Canvas *c);
 void print_history(Canvas *c, History *his);
 void print_pallet(Canvas *c);
-void free_canvas(Canvas *c);
 
 // display functions
 void rewind_screen(unsigned int line);
 void forward_screen(unsigned int line);
+void move_cursor(int x); // xは0-based
 void clear_line();
 void clear_screen(); // カーソル以降をすべて消去する
 

@@ -224,6 +224,7 @@ void move_cursor(int x) {
 
 void print_history(Canvas *c, History *his) {
 
+  // undoしたものも含めたコマンドの数
   int count = 0;
   Command *command = his->begin;
   while (command != NULL) {
@@ -231,9 +232,10 @@ void print_history(Canvas *c, History *his) {
     command = command->next;
   }
 
-  command = his->begin;
+  // 最新のコマンドのインデックス(undoで戻った場合にも対応)
   int now = his->size - 1;
   // キャンバスの高さ(上下の枠も含む)を超える場合、初めの方は表示しない
+  command = his->begin;
   while (count > c->height + 2) {
       command = command->next;
       count--;
@@ -243,12 +245,17 @@ void print_history(Canvas *c, History *his) {
   rewind_screen(count);
 
   char s[his->bufsize];
-  char max_len = 40; // max_len << his->bufsize
+  char max_len = 40;
   for (int i=0; i<count; i++) {
+    // キャンバスの右に表示する
     move_cursor(c->width * c->aspect + 3);
+    // 最大サイズを超えた場合は途中まで表示する
     strcpy(s, command->str);
-    s[max_len] = '\n';
-    s[max_len+1] = 0;
+    if (s[max_len] != 0) {
+      s[max_len] = '\n';
+      s[max_len+1] = 0;
+    }
+
     if (i == now)
       printf("\e[36m%s\e[0m", s);
     else
@@ -260,11 +267,13 @@ void print_history(Canvas *c, History *his) {
 
 void print_pallet(Canvas *c) {
 
+  // 文字色パレット表示する高さがない場合
   if (c->height < 16 - 2)
     return;
 
   rewind_screen(c->height + 2);
 
+  // 16 * 16 で文字色パレットを表示
   for (int i=0; i<16; i++) {
     move_cursor(c->width * c->aspect + 3);
     for (int j=0; j<16; j++) {
@@ -274,11 +283,13 @@ void print_pallet(Canvas *c) {
     printf("\n");
   }
 
+  // 背景色パレット表示する高さがない場合
   if (c->height < 32 - 2) {
     forward_screen(c->height + 2 - 16);
     return;
   }
 
+  // 16 * 16 で背景色パレットを表示
   for (int i=0; i<16; i++) {
     move_cursor(c->width * c->aspect + 3);
     for (int j=0; j<16; j++) {
