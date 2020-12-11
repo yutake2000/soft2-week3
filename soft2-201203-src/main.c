@@ -250,14 +250,14 @@ int draw_dot(Canvas *c, const int x, const int y) {
 
   if (c->pen == ' ') { // マーカーの場合
     layer->board[x][y] = ' ';
-    layer->bgcolor[x][y] = c->color; // \e[40mからが背景色指定
+    layer->bgcolor[x][y] = c->color;
   } else if (c->pen == 0) { // 消しゴムの場合
     layer->board[x][y] = 0;
     layer->color[x][y] = 0;
     layer->bgcolor[x][y] = 0;
   } else {
     layer->board[x][y] = c->pen;
-    layer->color[x][y] = c->color; // \e[30mからが文字色指定
+    layer->color[x][y] = c->color;
   }
 
   return 0;
@@ -271,9 +271,16 @@ void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1
   const int n = max(abs(x1 - x0), abs(y1 - y0));
   draw_dot(c, x0, y0);
   for (int i = 1; i <= n; i++) {
-    const int x = x0 + i * (x1 - x0) / n;
-    const int y = y0 + i * (y1 - y0) / n;
-    draw_dot(c, x, y);
+    double x = (x0 + 0.5) + i * (x1 - x0) / (double)n;
+    double y = (y0 + 0.5) + i * (y1 - y0) / (double)n;
+    draw_dot(c, (int)x, (int)y);
+    // ぴったり境界のときは2点打つ
+    if (x == (int)x) {
+      draw_dot(c, x-1, y);
+    }
+    if (y == (int)y) {
+      draw_dot(c, x, y-1);
+    }
   }
 }
 
@@ -341,6 +348,47 @@ void backet(Canvas *c, Layer *layer, int x0, int y0, int pen, int color, int bgc
       }
 
     }
+  }
+
+}
+
+void draw_polygon(Canvas *c, int len, int xs[], int ys[], int fill) {
+
+  
+  for (int i=0; i<len; i++) {
+    draw_line(c, xs[i], ys[i], xs[(i+1)%len], ys[(i+1)%len]);
+  }
+
+  if (fill) {
+
+    for (int x=0; x < c->width; x++) {
+      for (int y=0; y < c->height; y++) {
+        // (x, y)から右に伸ばした半直線と多角形の共有点の個数
+        int count = 0;
+        for (int i=0; i<len; i++) {
+          double x1 = xs[i] + 0.5;
+          double x2 = xs[(i+1)%len] + 0.5;
+          double y1 = ys[i] + 0.5;
+          double y2 = ys[(i+1)%len] + 0.5;
+          if (y1 < y && y2 < y)
+            continue;
+          if (y < y1 && y < y2)
+            continue;
+          if (y1 == y2)
+            continue;
+
+          double xc = (fabs(y2 - y) * x1 + fabs(y1 - y) * x2) / (double)fabs(y2 - y1);
+
+          if (x + 0.5 < xc)
+            count++;
+        }
+
+        if (count % 2 == 1) {
+          draw_dot(c, x, y);
+        }
+      }
+    }
+
   }
 
 }
@@ -673,6 +721,55 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
     free(args);
         printf("1 circle drawn\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "polygon") == 0) {
+    int len;
+    int *args = read_int_arguments_flex(&len);
+    // 値2つで一つの座標を表すので奇数の場合はエラー
+    if (args == NULL || len % 2 == 1) {
+      return ERROR;
+    }
+
+    char *option = strtok(NULL, " ");
+    int fill = (option != NULL && strcmp(option, "fill") == 0);
+
+    int *xs = (int*)malloc(sizeof(int)*(len/2));
+    int *ys = (int*)malloc(sizeof(int)*(len/2));
+    for (int i=0; i<len/2; i++) {
+      xs[i] = args[i*2];
+      ys[i] = args[i*2+1];
+    }
+    draw_polygon(c, len/2, xs, ys, fill);
+
+    free(args);
+    free(xs);
+    free(ys);
+    printf("1 polygon drawn\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "fillpolygon") == 0) {
+    int len;
+    int *args = read_int_arguments_flex(&len);
+    // 値2つで一つの座標を表すので奇数の場合はエラー
+    if (args == NULL || len % 2 == 1) {
+      return ERROR;
+    }
+
+    int *xs = (int*)malloc(sizeof(int)*(len/2));
+    int *ys = (int*)malloc(sizeof(int)*(len/2));
+    for (int i=0; i<len/2; i++) {
+      xs[i] = args[i*2];
+      ys[i] = args[i*2+1];
+    }
+    draw_polygon(c, len/2, xs, ys, 1);
+
+    free(args);
+    free(xs);
+    free(ys);
+    printf("1 polygon drawn\n");
     return NORMAL;
   }
 
