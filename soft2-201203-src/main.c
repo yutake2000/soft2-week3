@@ -330,6 +330,30 @@ void draw_circle(Canvas *c, const int x0, const int y0, const int r, int fill) {
 
 }
 
+void draw_sector(Canvas *c, int x0, int y0, int r, int theta0, int theta1, int fill) {
+
+  for (int x=0; x<c->width; x++) {
+    for (int y=0; y<c->height; y++) {
+      double dist = sqrt(pow(x-x0, 2) + pow(y-y0, 2));
+      double th = acos((x - x0) / sqrt(pow(x-x0, 2) + pow(y-y0, 2))) / (2 * M_PI) * 360;
+      if (y > y0)
+        th *= -1;
+      while (th < theta0)
+        th += 360;
+
+      if (th > theta1)
+        continue;
+
+      if (fill && dist < r) {
+        draw_dot(c, x, y);
+      } else if (r-1 <= dist && dist < r) {
+        draw_dot(c, x, y);
+      }
+    }
+  }
+
+}
+
 void backet(Canvas *c, Layer *layer, int x0, int y0, int pen, int color, int bgcolor, int strict) {
 
   draw_dot(c, x0, y0);
@@ -717,7 +741,21 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     draw_circle(c, args[0], args[1], args[2], fill);
 
     free(args);
-        printf("1 circle drawn\n");
+    printf("1 circle drawn\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "sector") == 0 || strcmp(s, "fillsector") == 0) {
+    int *args = read_int_arguments(5);
+    if (args == NULL) {
+      return ERROR;
+    }
+
+    int fill = (strcmp(s, "fillsector") == 0);
+    draw_sector(c, args[0], args[1], args[2], args[3], args[4], fill);
+
+    free(args);
+    printf("1 sector drawn\n");
     return NORMAL;
   }
 
@@ -923,6 +961,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       if (result == 1)
         return ERROR;
 
+      change_layer(c, index);
       printf("inserted\n");
     } else if (strcmp(s, "mv") == 0 || strcmp(s, "move") == 0) {
       int *indices = read_int_arguments(2);
@@ -974,6 +1013,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       if (result == 1)
         return ERROR;
 
+      change_layer(c, c->layer_list->size-1);
       printf("copied!\n");
     } else if (strcmp(s, "merge") == 0) {
       int index = read_layer_index(c->layer_index);
