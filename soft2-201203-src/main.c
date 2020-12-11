@@ -693,15 +693,13 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     return NORMAL;
   }
   
-  if (strcmp(s, "rect") == 0) {
+  if (strcmp(s, "rect") == 0 || strcmp(s, "fillrect") == 0) {
     int *args = read_int_arguments(4);
     if (args == NULL) {
       return ERROR;
     }
 
-    char *option = strtok(NULL, " ");
-    int fill = (option != NULL && strcmp(option, "fill") == 0);
-
+    int fill = (strcmp(s, "fillrect") == 0);
     draw_rect(c, args[0], args[1], args[2], args[3], fill);
 
     free(args);
@@ -709,14 +707,13 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     return NORMAL;
   }
 
-  if (strcmp(s, "circle") == 0) {
+  if (strcmp(s, "circle") == 0 || strcmp(s, "fillcircle") == 0) {
     int *args = read_int_arguments(3);
     if (args == NULL) {
       return ERROR;
     }
 
-    char *option = strtok(NULL, " ");
-    int fill = (option != NULL && strcmp(option, "fill") == 0);
+    int fill = (strcmp(s, "fillcircle") == 0);
     draw_circle(c, args[0], args[1], args[2], fill);
 
     free(args);
@@ -724,7 +721,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     return NORMAL;
   }
 
-  if (strcmp(s, "polygon") == 0) {
+  if (strcmp(s, "polygon") == 0 || strcmp(s, "fillpolygon") == 0) {
     int len;
     int *args = read_int_arguments_flex(&len);
     // 値2つで一つの座標を表すので奇数の場合はエラー
@@ -732,9 +729,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
     }
 
-    char *option = strtok(NULL, " ");
-    int fill = (option != NULL && strcmp(option, "fill") == 0);
-
+    int fill = (strcmp(s, "fillpolygon") == 0);
     int *xs = (int*)malloc(sizeof(int)*(len/2));
     int *ys = (int*)malloc(sizeof(int)*(len/2));
     for (int i=0; i<len/2; i++) {
@@ -742,29 +737,6 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       ys[i] = args[i*2+1];
     }
     draw_polygon(c, len/2, xs, ys, fill);
-
-    free(args);
-    free(xs);
-    free(ys);
-    printf("1 polygon drawn\n");
-    return NORMAL;
-  }
-
-  if (strcmp(s, "fillpolygon") == 0) {
-    int len;
-    int *args = read_int_arguments_flex(&len);
-    // 値2つで一つの座標を表すので奇数の場合はエラー
-    if (args == NULL || len % 2 == 1) {
-      return ERROR;
-    }
-
-    int *xs = (int*)malloc(sizeof(int)*(len/2));
-    int *ys = (int*)malloc(sizeof(int)*(len/2));
-    for (int i=0; i<len/2; i++) {
-      xs[i] = args[i*2];
-      ys[i] = args[i*2+1];
-    }
-    draw_polygon(c, len/2, xs, ys, 1);
 
     free(args);
     free(xs);

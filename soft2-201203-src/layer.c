@@ -38,7 +38,7 @@ int reverse_layer(Canvas *c, int index, char *mode) {
   int w = c->width;
   int h = c->height;
   copy_to_clipboard(c, clip, 0, 0, w, h);
-  if (strcmp(mode, "vertical") == 0) {
+  if (strcmp(mode, "vertical") == 0 || mode[0] == 'v') {
     for (int x=0; x<w; x++) {
       for (int y=0; y<h; y++) {
         layer->board[x][y] = clip->board[x][h-1-y];
@@ -46,7 +46,7 @@ int reverse_layer(Canvas *c, int index, char *mode) {
         layer->bgcolor[x][y] = clip->bgcolor[x][h-1-y];
       }
     }
-  } else if (strcmp(mode, "horizontal") == 0) {
+  } else if (strcmp(mode, "horizontal") == 0 || mode[0] == 'h') {
     for (int x=0; x<w; x++) {
       for (int y=0; y<h; y++) {
         layer->board[x][y] = clip->board[w-1-x][y];
@@ -54,7 +54,7 @@ int reverse_layer(Canvas *c, int index, char *mode) {
         layer->bgcolor[x][y] = clip->bgcolor[w-1-x][y];
       }
     }
-  } else if (strcmp(mode, "diagonal") == 0) {
+  } else if (strcmp(mode, "diagonal") == 0 || mode[0] == 'd') {
     if (w != h) {
       printf("Not square!\n");
       return 1;
