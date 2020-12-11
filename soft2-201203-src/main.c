@@ -13,7 +13,7 @@ int main(int argc, char **argv)
 {
 
   History *his = (History*)malloc(sizeof(History));
-  his->bufsize = 1000;
+  his->bufsize = 128;
 
   int width;
   int height;
@@ -46,6 +46,7 @@ int main(int argc, char **argv)
   while (1) {
 
     print_canvas(fp,c);
+    print_history(c, his);
     printf("Layer %d/%zu | ", c->layer_index + 1, c->layer_list->size);
     if (c->pen == ' ') { // マーカーの場合
       printf("marker \e[48;5;%dm   \e[0m", c->color);
@@ -212,6 +213,46 @@ void print_canvas(FILE *fp, Canvas *c)
   fflush(fp);
 }
 
+void move_cursor(int x) {
+  printf("\e[%dG", x+1);
+}
+
+void print_history(Canvas *c, History *his) {
+
+  int count = 0;
+  Command *command = his->begin;
+  while (command != NULL) {
+    count++;
+    command = command->next;
+  }
+
+  command = his->begin;
+  int now = his->size - 1;
+  // キャンバスの高さ(上下の枠も含む)を超える場合、初めの方は表示しない
+  while (count > c->height + 2) {
+      command = command->next;
+      count--;
+      now--;
+  }
+
+  rewind_screen(count);
+
+  char s[his->bufsize];
+  char max_len = 40; // max_len << his->bufsize
+  for (int i=0; i<count; i++) {
+    move_cursor(c->width * c->aspect + 3);
+    strcpy(s, command->str);
+    s[max_len] = '\n';
+    s[max_len+1] = 0;
+    if (i == now)
+      printf("\e[36m%s\e[0m", s);
+    else
+      printf("%s", s);
+    command = command->next;
+  }
+
+}
+
 void free_canvas(Canvas *c)
 {
   free_all_layers(c);
@@ -220,6 +261,7 @@ void free_canvas(Canvas *c)
 
 void rewind_screen(unsigned int line)
 {
+  if (line <= 0) return;
   printf("\e[%dA",line);
 }
 
