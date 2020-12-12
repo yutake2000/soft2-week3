@@ -22,6 +22,11 @@ typedef struct {
   int height;
 } Clipboard;
 
+typedef struct {
+  int x;
+  int y;
+} Point;
+
 // Structure for canvas
 typedef struct
 {
@@ -39,6 +44,8 @@ typedef struct
   int cursorY;
   int color; // 0-7
   Clipboard *clipboard; // コピーしたものを保存する
+  int mark_len;
+  Point marks[16]; // lineやpolygonで使うようにカーソル位置を保存する
 } Canvas;
 
 // 最大履歴と現在位置の情報は持たない

@@ -127,6 +127,9 @@ Canvas *init_canvas(int width,int height, char pen)
   new->cursorY = -1;
   new->color = 0;
   new->clipboard = construct_clipboard();
+  new->mark_len = 0;
+  for (int i=0; i<16; i++)
+    new->marks[i] = (Point){.x = -1, .y = -1};
   return new;
 }
 
@@ -147,6 +150,9 @@ void reset_canvas(Canvas *c)
   c->layer_list->size = 1;
 
   c->clipboard = construct_clipboard();
+  c->mark_len = 0;
+  for (int i=0; i<16; i++)
+    c->marks[i] = (Point){.x = -1, .y = -1};
 }
 
 void print_char(char c, int color, int bgcolor, FILE *fp) {
@@ -206,8 +212,15 @@ void print_canvas(FILE *fp, Canvas *c)
         is_current_layer = (i == c->layer_index);
       }
       
+      // カーソルまたは目印が置いてある場合は1
+      int cursor = (x == c->cursorX && y == c->cursorY);
+      for (int i=0; i<c->mark_len; i++) {
+        if (x == c->marks[i].x && y == c->marks[i].y)
+          cursor = 1;
+      }
+
       for (int i=0; i<c->aspect; i++) {
-        if (x == c->cursorX && y == c->cursorY)
+        if (cursor)
           printf("\e[7m");
         print_char(ch, color, bgcolor, fp);
       }
@@ -671,7 +684,7 @@ int *read_int_arguments(const int count) {
 
 int *read_int_arguments_flex(int *len) {
 
-  char **b = (char**)calloc(16, sizeof(char*));
+  char **b = (char**)calloc(32, sizeof(char*));
 
   int count = 0;
   while(1) {
@@ -807,6 +820,21 @@ int read_layer_index(int default_value) {
   return index;
 }
 
+void add_mark(Canvas *c) {
+  // 現在のカーソルの位置を保存する
+  if (c->mark_len < 16) {
+    c->marks[c->mark_len] = (Point){.x = c->cursorX, .y = c->cursorY};
+    c->mark_len++;
+  }
+}
+
+void clear_mark(Canvas *c) {
+  for (int i=0; i<c->mark_len; i++) {
+    c->marks[i] = (Point){.x = 0, .y = 0};
+  }
+  c->mark_len = 0;
+}
+
 Result interpret_command(const char *command, History *his, Canvas *c)
 {
   char buf[his->bufsize];
@@ -819,38 +847,46 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
   if (s == NULL) {
     s = "redo";
-    /*
-        printf("none!\n");
-    return UNKNOWN;
-    */
   }
 
   clear_line();
 
-  // The first token corresponds to command
   if (strcmp(s, "line") == 0) {
-    int *args = read_int_arguments(4);
-    if (args == NULL) {
-      return ERROR;
+    if (c->mark_len >= 1) {
+      add_mark(c); // 現在のカーソル位置もマークする
+      Point p1 = c->marks[0];
+      Point p2 = c->marks[1];
+      draw_line(c, p1.x, p1.y, p2.x, p2.y);
+      clear_mark(c);
+    } else {
+      int *args = read_int_arguments(4);
+      if (args == NULL)
+        return ERROR;
+
+      draw_line(c, args[0], args[1], args[2], args[3]);
+      free(args);
     }
-
-    draw_line(c, args[0], args[1], args[2], args[3]);
-
-    free(args);
     printf("1 line drawn\n");
     return NORMAL;
   }
   
   if (strcmp(s, "rect") == 0 || strcmp(s, "fillrect") == 0) {
-    int *args = read_int_arguments(4);
-    if (args == NULL) {
-      return ERROR;
-    }
-
     int fill = (strcmp(s, "fillrect") == 0);
-    draw_rect(c, args[0], args[1], args[2], args[3], fill);
 
-    free(args);
+    if (c->mark_len >= 1) {
+      add_mark(c);
+      Point p1 = c->marks[0];
+      Point p2 = c->marks[1];
+      draw_rect(c, p1.x, p1.y, p2.x - p1.x + 1, p2.y - p1.y + 1, fill);
+      clear_mark(c);
+    } else {
+      int *args = read_int_arguments(4);
+      if (args == NULL)
+        return ERROR;
+
+      draw_rect(c, args[0], args[1], args[2], args[3], fill);
+      free(args);
+    }
     printf("1 rect drawn\n");
     return NORMAL;
   }
@@ -887,7 +923,7 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     int len;
     int *args = read_int_arguments_flex(&len);
     // 値2つで一つの座標を表すので奇数の場合はエラー
-    if (args == NULL || len % 2 == 1) {
+    if (len == 0 || len % 2 == 1) {
       return ERROR;
     }
 
@@ -975,6 +1011,8 @@ Result interpret_command(const char *command, History *his, Canvas *c)
 
   if (strcmp(s, "marker") == 0) {
     c->pen = ' ';
+    if (c->color == 0)
+      c->color = 232; // 0は空白判定なので232(黒)にする
     printf("changed!\n");
     return NORMAL;
   }
@@ -1279,30 +1317,13 @@ Result interpret_command(const char *command, History *his, Canvas *c)
     return NORMAL;
   }
 
-  if (strcmp(s, "cursor") == 0) {
-    char *mode = strtok(NULL, " ");
-
-    if (strcmp(mode, "set") == 0) {
-      int *args = read_int_arguments(2);
-      if (args == NULL)
-        return ERROR;
-
-      c->cursorX = args[0];
-      c->cursorY = args[1];
-    } else if (strcmp(mode, "hide") == 0) {
-      c->cursorX = -1;
-      c->cursorY = -1;
-    } else if (strcmp(mode, "mv") == 0 || strcmp(mode, "move") == 0) {
-      int *args = read_int_arguments(2);
-      if (args == NULL)
-        return ERROR;
-
-      c->cursorX += args[0];
-      c->cursorY += args[1];
-    } else {
-      printf("usage: cursor [mode <args>]\n");
+  if (strcmp(s, "cset") == 0) {
+    int *args = read_int_arguments(2);
+    if (args == NULL)
       return ERROR;
-    }
+
+    c->cursorX = args[0];
+    c->cursorY = args[1];
 
     if (in_board(c->cursorX, c->cursorY, c)) {
       printf("cursor: (%d, %d)\n", c->cursorX, c->cursorY);
@@ -1310,6 +1331,47 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       printf("cursor: none\n");
     }
     return NORMAL;
+  } else if (strcmp(s, "chide") == 0) {
+    c->cursorX = -1;
+    c->cursorY = -1;
+    printf("cursor: none\n");
+    return NORMAL;
+  } else if (strcmp(s, "cmv") == 0 || strcmp(s, "cmove") == 0) {
+    int *args = read_int_arguments(2);
+    if (args == NULL)
+      return ERROR;
+
+    c->cursorX += args[0];
+    c->cursorY += args[1];
+
+    if (in_board(c->cursorX, c->cursorY, c)) {
+      printf("cursor: (%d, %d)\n", c->cursorX, c->cursorY);
+    } else {
+      printf("cursor: none\n");
+    }
+    return NORMAL;
+  } else if (strcmp(s, "cmark") == 0) {
+    char *operation = strtok(NULL, " ");
+    if (operation == NULL)
+      operation = "add";
+
+    const int len = c->mark_len;
+    if (strcmp(operation, "add") == 0) {
+      add_mark(c);
+      printf("marked! (%d, %d)\n", c->cursorX, c->cursorY);
+      return NORMAL;
+    } else if (strcmp(operation, "rm") == 0 || strcmp(operation, "remove") == 0) {
+      // 最後を削除する
+      if (len > 0) {
+        c->marks[len-1] = (Point){.x = -1, .y = -1};
+        c->mark_len--;
+      }
+      printf("last mark removed!\n");
+      return NORMAL;
+    } else {
+      printf("usage: cursor mark [operation]\n");
+      return ERROR;
+    }
   }
 
   if (strcmp(s, "quit") == 0) {
