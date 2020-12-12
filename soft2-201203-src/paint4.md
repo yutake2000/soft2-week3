@@ -15,7 +15,7 @@
 
 ## コンパイル
 ```
-gcc -o paint4 paint4.c
+gcc -o paint4 -lm paint4.c
 ```
 
 ## 実行
@@ -39,7 +39,7 @@ paint4 40 40
 - 1つのファイルが終了したら次のanimateコマンドを実行する
 
 ```
-animate sample/A.txt
+animate sample/merge.txt
 animate sample/emblem.txt
 animate sample/osaka.txt
 animate sample/osaka_cursor.txt
