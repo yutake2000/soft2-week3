@@ -20,10 +20,10 @@ gcc -o paint4 -lm paint4.c
 
 ## 実行
 ```
-paint4 <width> <height> [pallet]
+./paint4 <width> <height> [pallet]
 
 例:
-paint4 40 40 pallet
+./paint4 40 40 pallet
 ```
 - サンプルは基本40×40マスを想定している
 - palletオプション
@@ -32,7 +32,7 @@ paint4 40 40 pallet
 
 ## サンプル
 ```
-paint4 40 40
+./paint4 40 40
 ```
 - 上のコマンドをターミナルで実行した後、下記のファイルを読み込むコマンドをプログラム中で入力する
 - animateコマンド実行後はEnterキーを押すごとにコマンドが1つずつ実行されていく(実際にはredoしている)
