@@ -35,6 +35,8 @@ typedef struct
   char pen;
   char pen_default;
   int pen_size;
+  int cursorX;
+  int cursorY;
   int color; // 0-7
   Clipboard *clipboard; // コピーしたものを保存する
 } Canvas;

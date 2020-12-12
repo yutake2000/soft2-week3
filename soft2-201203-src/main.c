@@ -123,6 +123,8 @@ Canvas *init_canvas(int width,int height, char pen)
   new->pen = pen;
   new->pen_default = pen;
   new->pen_size = 1;
+  new->cursorX = -1;
+  new->cursorY = -1;
   new->color = 0;
   new->clipboard = construct_clipboard();
   return new;
@@ -135,6 +137,8 @@ void reset_canvas(Canvas *c)
   c->aspect = 1;
   c->pen = c->pen_default;
   c->pen_size = 1;
+  c->cursorX = -1;
+  c->cursorY = -1;
   c->color = 0;
   free_all_layers(c);
   c->layer_index = 0;
@@ -203,6 +207,8 @@ void print_canvas(FILE *fp, Canvas *c)
       }
       
       for (int i=0; i<c->aspect; i++) {
+        if (x == c->cursorX && y == c->cursorY)
+          printf("\e[7m");
         print_char(ch, color, bgcolor, fp);
       }
     }
@@ -1270,6 +1276,39 @@ Result interpret_command(const char *command, History *his, Canvas *c)
       return ERROR;
 
     printf("reversed!\n");
+    return NORMAL;
+  }
+
+  if (strcmp(s, "cursor") == 0) {
+    char *mode = strtok(NULL, " ");
+
+    if (strcmp(mode, "set") == 0) {
+      int *args = read_int_arguments(2);
+      if (args == NULL)
+        return ERROR;
+
+      c->cursorX = args[0];
+      c->cursorY = args[1];
+    } else if (strcmp(mode, "hide") == 0) {
+      c->cursorX = -1;
+      c->cursorY = -1;
+    } else if (strcmp(mode, "mv") == 0 || strcmp(mode, "move") == 0) {
+      int *args = read_int_arguments(2);
+      if (args == NULL)
+        return ERROR;
+
+      c->cursorX += args[0];
+      c->cursorY += args[1];
+    } else {
+      printf("usage: cursor [mode <args>]\n");
+      return ERROR;
+    }
+
+    if (in_board(c->cursorX, c->cursorY, c)) {
+      printf("cursor: (%d, %d)\n", c->cursorX, c->cursorY);
+    } else {
+      printf("cursor: none\n");
+    }
     return NORMAL;
   }
 
