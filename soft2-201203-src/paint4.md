@@ -16,6 +16,8 @@
 ## コンパイル
 ```
 gcc -o paint4 -lm paint4.c
+または
+gcc paint4.c -o paint4 -lm
 ```
 
 ## 実行
