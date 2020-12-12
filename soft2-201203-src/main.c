@@ -835,6 +835,29 @@ void clear_mark(Canvas *c) {
   c->mark_len = 0;
 }
 
+Point calc_center(Canvas *c) {
+
+  int x1 = c->marks[0].x;
+  int y1 = c->marks[0].y;
+  int x2 = c->marks[1].x;
+  int y2 = c->marks[1].y;
+  int x3 = c->marks[2].x;
+  int y3 = c->marks[2].y;
+
+  int x0 = (y2 - y3) * (x1*x1 + (y1-y2)*(y1-y3)) + x2*x2*(y3-y1) + x3*x3*(y1-y2);
+  int y0 = x1*x1*(x3-x2) + x1*(x2*x2 - x3*x3 + y2*y2 - y3*y3) - x2*x2*x3 + x2*(x3*x3-y1*y1+y3*y3) + x3*(y1*y1-y2*y2);
+
+  double bunbo = 2 * (x1 * (y2-y3) + x2 * (y3-y1) + x3 * (y1-y2));
+  x0 /= bunbo;
+  y0 /= bunbo;
+
+  return (Point){.x = x0, .y = y0};
+}
+
+int calc_distance(Point p1, Point p2) {
+  return round(sqrt(pow(p1.x - p2.x, 2) + pow(p1.y -p2.y, 2)));
+}
+
 Result interpret_command(const char *command, History *his, Canvas *c)
 {
   char buf[his->bufsize];
@@ -892,26 +915,44 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   }
 
   if (strcmp(s, "circle") == 0 || strcmp(s, "fillcircle") == 0) {
-    int *args = read_int_arguments(3);
-    if (args == NULL) {
-      return ERROR;
-    }
-
     int fill = (strcmp(s, "fillcircle") == 0);
-    draw_circle(c, args[0], args[1], args[2], fill);
 
-    free(args);
+    // 異なる点が3つ以上なら、その3つの点を通る円を描く
+    if (c->mark_len >= 3 ||
+      (c->mark_len == 2 &&
+        c->marks[c->mark_len].x != c->cursorX &&
+        c->marks[c->mark_len].y != c->cursorY)) {
+      add_mark(c);
+      Point p0 = calc_center(c);
+      int r = calc_distance(p0, c->marks[0]);
+      draw_circle(c, p0.x, p0.y, r, fill);
+      clear_mark(c);
+    } else if (c->mark_len >= 1) {
+      add_mark(c);
+      // marks[0]を中心、marks[0]とmarks[1]の距離を半径とする円を描く
+      int r = calc_distance(c->marks[0], c->marks[1]);
+      draw_circle(c, c->marks[0].x, c->marks[0].y, r, fill);
+      clear_mark(c);
+    } else {
+      int *args = read_int_arguments(3);
+      if (args == NULL)
+        return ERROR;
+
+      draw_circle(c, args[0], args[1], args[2], fill);
+      free(args);
+    }
     printf("1 circle drawn\n");
     return NORMAL;
   }
 
   if (strcmp(s, "sector") == 0 || strcmp(s, "fillsector") == 0) {
+    int fill = (strcmp(s, "fillsector") == 0);
+
     int *args = read_int_arguments(5);
     if (args == NULL) {
       return ERROR;
     }
 
-    int fill = (strcmp(s, "fillsector") == 0);
     draw_sector(c, args[0], args[1], args[2], args[3], args[4], fill);
 
     free(args);
