@@ -1,0 +1,29 @@
+aspect 2
+color 4
+fillcircle 0 0 23
+eraser
+layer cp
+reverse horizontal
+layer merge 2
+fillcircle 0 0 18
+reverse horizontal
+fillcircle 0 0 18
+reverse vertical
+layer add
+layer hide 1
+chpen *
+fillcircle -5 -5 25
+eraser
+fillcircle -5 -5 20
+reverse vertical
+mv 0 0 40 40 20 -20
+layer show 0
+layer cp
+layer ch 3
+reverse horizontal
+layer ch 1
+line 0 0 0 40
+line 39 0 39 40
+layer ch 3
+layer merge
+fillpolygon 16 0 19 3 20 3 23 0

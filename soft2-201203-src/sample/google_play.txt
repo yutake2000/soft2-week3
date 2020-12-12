@@ -1,0 +1,9 @@
+resize 80 40
+color 178
+fillpolygon 10 0 10 39 70 20
+color 49
+fillpolygon 10 0 10 39 55 15
+color 162
+fillpolygon 10 0 10 39 55 25
+color 51
+fillpolygon 10 0 10 39 46 20

@@ -1,0 +1,38 @@
+aspect 2
+color 4
+fillcircle 0 0 15
+eraser
+fillcircle -5 -5 20
+mv 0 0 40 40 0 7
+chpen *
+color 3
+fillcircle 13 5 2
+layer cp
+layer ch 2
+reverse horizontal
+reverse vertical
+color 2
+backet 37 18
+layer ch 1
+copy 0 7 15 15
+layer add
+paste 15 7
+reverse horizontal
+layer cp
+reverse vertical
+reverse horizontal
+mv 0 0 40 40 -2 0
+layer ch 3
+mv 0 0 40 40 2 0
+color 3
+backet 19 19
+layer ch 4
+layer hide 0
+backet 20 20
+layer show 0
+layer ch 4
+layer merge
+eraser 
+line 15 18 16 19
+line 24 21 24 21
+layer mv 3 2
