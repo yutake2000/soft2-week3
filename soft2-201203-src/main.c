@@ -459,14 +459,19 @@ void draw_circle(Canvas *c, const int x0, const int y0, const int r, int fill) {
 
 }
 
+double calc_theta(int x0, int y0, int x, int y) {
+  int th = acos((x - x0) / sqrt(pow(x-x0, 2) + pow(y-y0, 2))) / (2 * M_PI) * 360;
+  if (y > y0)
+    th *= -1;
+  return th;
+}
+
 void draw_sector(Canvas *c, int x0, int y0, int r, int theta0, int theta1, int fill) {
 
   for (int x=0; x<c->width; x++) {
     for (int y=0; y<c->height; y++) {
       double dist = sqrt(pow(x-x0, 2) + pow(y-y0, 2));
-      double th = acos((x - x0) / sqrt(pow(x-x0, 2) + pow(y-y0, 2))) / (2 * M_PI) * 360;
-      if (y > y0)
-        th *= -1;
+      double th = calc_theta(x0, y0, x, y);
       while (th < theta0)
         th += 360;
 
@@ -948,14 +953,33 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   if (strcmp(s, "sector") == 0 || strcmp(s, "fillsector") == 0) {
     int fill = (strcmp(s, "fillsector") == 0);
 
-    int *args = read_int_arguments(5);
-    if (args == NULL) {
-      return ERROR;
+    if (c->mark_len >= 3 ||
+      (c->mark_len == 2 &&
+        c->marks[c->mark_len].x != c->cursorX &&
+        c->marks[c->mark_len].y != c->cursorY)) {
+      add_mark(c);
+      Point p0 = calc_center(c);
+      int r = calc_distance(p0, c->marks[0]);
+      int th1 = calc_theta(p0.x, p0.y, c->marks[0].x, c->marks[0].y);
+      int th2 = calc_theta(p0.x, p0.y, c->marks[1].x, c->marks[1].y);
+      int th3 = calc_theta(p0.x, p0.y, c->marks[2].x, c->marks[2].y);
+      while (th2 < th1)
+        th2 += 360;
+      while (th3 < th1)
+        th3 += 360;
+      if (th3 <= th2)
+        draw_sector(c, p0.x, p0.y, r, th1, th2, fill);
+      else
+        draw_sector(c, p0.x, p0.y, r, th2, th1+360, fill);
+      clear_mark(c);
+    } else {
+      int *args = read_int_arguments(5);
+      if (args == NULL)
+        return ERROR;
+
+      draw_sector(c, args[0], args[1], args[2], args[3], args[4], fill);
+      free(args);
     }
-
-    draw_sector(c, args[0], args[1], args[2], args[3], args[4], fill);
-
-    free(args);
     printf("1 sector drawn\n");
     return NORMAL;
   }
