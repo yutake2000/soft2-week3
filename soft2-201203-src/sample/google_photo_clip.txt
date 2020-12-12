@@ -1,5 +1,4 @@
 aspect 2
-color 1
 fillcircle 0 10 10
 mv 0 0 40 40 20 0
 layer cp
@@ -8,18 +7,17 @@ layer cp
 layer ch 2
 reverse diagonal
 reverse horizontal
-color 3
-backet 1 19
 layer ch 3
 reverse vertical
 reverse horizontal
-color 2
-backet 19 20
 layer ch 4
 reverse diagonal
 reverse vertical
-color 4
+layer merge
+layer merge
+layer merge
 layer add
+color 4
 fillrect 20 20 20 20
 color 1
 fillrect 20 0 20 20

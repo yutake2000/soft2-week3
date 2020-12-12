@@ -1,8 +1,8 @@
 typedef struct layer Layer;
 struct layer {
   int **board;
-  int **color; // 30-37
-  int **bgcolor; // 40-47
+  int **color; // 0-255のカラーコード
+  int **bgcolor; // 0(透明),または1-255のカラーコード
   int visible; // 表示する場合は1
   int clipped; // 下のレイヤーにクリッピングされる場合は1
   Layer *next;
@@ -14,6 +14,8 @@ typedef struct {
   size_t size;
 } Layer_List;
 
+// copyコマンドでコピーしたものを保存する
+// mvやreverseで一時的に別の二次元配列にコピーしたい場合にも使う
 typedef struct {
   int **board;
   int **color;
@@ -32,20 +34,20 @@ typedef struct
 {
   int width;
   int height;
-  int width_default;
+  int width_default; // リサイズ後に戻すため
   int height_default;
   int aspect;
-  int layer_index;
+  int layer_index; // 現在表示しているレイヤーのインデックス
   Layer_List *layer_list;
   char pen;
   char pen_default;
   int pen_size;
   int cursorX;
   int cursorY;
-  int color; // 0-7
+  int color; // 0-255のカラーコード
   Clipboard *clipboard; // コピーしたものを保存する
   int mark_len;
-  Point marks[16]; // lineやpolygonで使うようにカーソル位置を保存する
+  Point marks[16]; // lineやpolygonで使う用にカーソル位置を保存する
 } Canvas;
 
 // 最大履歴と現在位置の情報は持たない
@@ -85,11 +87,19 @@ typedef enum res{ EXIT, NORMAL, COMMAND, UNKNOWN, ERROR} Result;
 
 int max(const int a, const int b);
 int in_board(int x, int y, Canvas *c);
-int draw_dot(Canvas *c, const int x, const int y); //(x, y)がキャンバス内なら点を打つ。外なら1を返すのみ。
+// (x, y)がキャンバス内なら点を打つ。外なら1を返すのみ。
+// すべてのdraw_*関数はすべてこのdraw_dotを呼び出して書き込む
+int draw_dot(Canvas *c, const int x, const int y);
 void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1);
 void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height, int fill);
 void draw_circle(Canvas *c, const int x0, const int y0, const int r, int fill);
 void draw_polygon(Canvas *c, int len, Point ps[], int fill);
+
+void add_mark(Canvas *c); // 現在のカーソルの位置を保存する
+void clear_mark(Canvas *c);
+Point calc_center(Canvas *c); // cmarkコマンドでつけた目印3つを通る円の中心を計算する
+int calc_distance(Point p1, Point p2);
+
 void copy_to_clipboard(Canvas *c, Clipboard *clip, int x0, int y0, int w, int h);
 void paste_from_clipboard(Canvas *c, Clipboard *clip, int x0, int y0);
 Clipboard *construct_clipboard();
@@ -135,6 +145,7 @@ int merge_layers(Canvas *c, int len, int indices[]);
 int merge_layer(Canvas *c, int index);
 // レイヤーaをレイヤーbにクリッピング(b = -1で解除)。
 int clip_layer(Canvas *c, int a, int b);
+
 void free_2darray(int **array);
 void free_board(Layer *layer);
 void free_layer(Layer *layer);

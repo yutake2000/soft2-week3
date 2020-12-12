@@ -1,0 +1,21 @@
+resize 30 30
+aspect 2
+color 2
+color 1
+fillrect 0 0 30 30 
+eraser
+fillcircle 14 14 15
+fillcircle 15 15 15
+fillrect 0 15 15 15
+fillrect 15 0 15 15
+color 0
+chpen *
+fillrect 9 0 12 30
+color 1
+fillcircle 25 4 5
+l add
+color 178
+fillrect 0 0 9 30
+color 252
+fillrect 21 15 10 15
+layer clip

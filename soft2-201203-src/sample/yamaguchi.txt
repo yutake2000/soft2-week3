@@ -1,0 +1,21 @@
+aspect 2
+marker
+color 95
+cset 20 20
+cmark
+cmv 0 -15
+pensize 5
+circle
+fillsector 20 20 10 -120 -60
+cset 0 20
+cmark
+cmv 10 10
+cmv 5 4
+cmark
+cmv 10 0
+cmark
+cset 39 20
+pensize 1
+fillpolygon
+eraser
+fillsector 20 20 10 -60 240

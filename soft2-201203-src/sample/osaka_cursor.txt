@@ -1,0 +1,32 @@
+marker
+color 18
+aspect 2
+pensize 5
+cset 0 17
+cmark
+cset 23 39
+cmark
+cmv -10 -15
+cmv 0 -3
+sector
+layer cp
+reverse horizontal
+layer add
+cset -1 20
+cmark
+cset 40 20
+cmv 1 0
+cmark
+cset 20 -1
+sector
+cmv -3 1
+cmark
+cmv 2 4
+cmark
+cmv 1 0
+cmark
+cmv 2 -4
+eraser
+pensize 1
+fillpolygon
+chide

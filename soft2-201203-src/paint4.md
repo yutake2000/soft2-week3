@@ -1,8 +1,9 @@
-# ファイル構成
+# 構成
 - paint4.c
 	- メインのプログラム
 - paint4.h
 	- 関数・構造体の定義を行うヘッダファイル
+	- 大まかな説明が書かれている
 - layer.c
 	- レイヤー操作の関数が多いためpaint4.cから分割した
 	- paint4.cでincludeしている
@@ -34,15 +35,55 @@ paint4 40 40 pallet
 paint4 40 40
 ```
 - 上のコマンドをターミナルで実行した後、下記のファイルを読み込むコマンドをプログラム中で入力する
-- 入力後はEnterキーを押すごとにコマンドが1つずつ実行されていく
+- animateコマンド実行後はEnterキーを押すごとにコマンドが1つずつ実行されていく(実際にはredoしている)
 - 1つのファイルが終了したら次のanimateコマンドを実行する
 
 ```
+animate sample/A.txt
+animate sample/emblem.txt
 animate sample/osaka.txt
+animate sample/osaka_cursor.txt
 animate sample/nagasaki.txt
-animate sample/google_photo.txt
+animate sample/google_photo_backet.txt
+animate sample/google_photo_clip.txt
 animate sample/google_play.txt
+animate sample/google_play2.txt
+animate sample/yamaguchi.txt
 ```
+### sample/merge.txt
+- 普通のペンとマーカーの重なり方やレイヤーの重なり方がわかるサンプル
+
+### sample/emblem.txt
+- クリッピングのサンプル
+
+### osaka.txt
+- 大阪大学のロゴ
+- 円描画とレイヤーの移動・反転機能を主に使った
+
+### osaka_cursor.txt
+- カーソルで3点を指定して、そこを通る弧の描画のみで作った
+- カーソルはコマンドで動かしている
+
+### nagasaki.txt
+- 長崎大学の略式ロゴ
+- 使った機能はosaka.txtとほぼ同じ
+
+### google_photo_backet.txt
+- レイヤーの反転とバケツ機能を主に使っている
+
+### sample/google_photo_clip.txt
+- バケツ機能の代わりにクリッピングを利用して色をつけた
+
+### sample/google_play.txt
+- 多角形描画を使った
+
+### sample/google_play2.txt
+- マーカーを使ったバージョン
+
+### sample/yamaguchi.txt
+- 山口県の県章
+- カーソル操作を用いた
+- 目印をつけておくことで描画コマンドで引数を省略できる
 
 # コマンド一覧
 
@@ -268,3 +309,29 @@ cmark
 cmark rm
 ```
 - 一番新しい目印を削除する
+
+```
+chide
+```
+- カーソルを非表示にする
+
+# ポイント
+- レイヤー
+	- レイヤーのリストは両方向連結リストで管理している
+		- ただし、コーディングのしやすさからget_layerを使うことが多くprevは全く役に立っていない
+		- get_layerをループ中に使うと実行時間がO(N^2)になるが、 Nは十分に小さいので今回は気にしていない
+- 多角形
+	- 内側を塗りつぶすとき多角形の内部かどうかの判定には[Crossing Number Algorithm](https://www.nttpc.co.jp/technology/number_algorithm.html)を用いた
+- 右側のコマンド履歴
+	- undoしたコマンドも表示されるので、座標を失敗した場合などに取り消したコマンドを見ながら入力できる
+- カーソル
+	- コマンドでカーソルを移動させることができる
+	- カーソルを移動させながらマークすることで図形描画に利用できる(すべて引数なし)
+		- 線を引く場合: 一箇所マーク、カーソルを移動、line
+		- 四角を描く場合: 四角の左上隅にしたい場所をマーク、カーソルを四角の右下隅にしたい場所に移動、rect または fillrect
+		- 円を描く場合(中心と半径): 円の中心をマーク、カーソルを半径分だけずらす、circle または fillcircle
+		- 円を描く場合(3点を通る円): 1点目をマーク、2点目をマーク、カーソルをずらす、circle または fillcircle
+		- 弧、または扇型を描く場合: 1点目(端)をマーク、2点目(端)をマーク、カーソルをマークした2点の間あたりにおく、sector または fillsector
+	- sample/yamaguchi.txt, sample/osaka_cursorで使われている
+
+

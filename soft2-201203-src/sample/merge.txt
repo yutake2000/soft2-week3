@@ -1,0 +1,23 @@
+marker
+line 1 1 10 10
+marker 7
+color 7
+line 1 1 10 10
+chpen *
+color 1
+line 10 10 20 1
+marker
+color 2
+line 1 5 20 5
+l add
+l ch 2
+color 1
+rect 1 1 10 10
+l add
+l ch 3
+color 4
+circle 50 15 10
+circle 10 10 10
+l mv 3 1
+layer merge 3
+layer merge 2

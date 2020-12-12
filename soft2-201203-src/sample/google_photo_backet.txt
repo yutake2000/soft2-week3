@@ -1,0 +1,17 @@
+aspect 2
+color 1
+fillcircle 0 10 10
+mv 0 0 40 40 20 0
+layer cp
+reverse horizontal
+reverse vertical
+color 2
+backet 19 20
+layer merge
+layer cp
+reverse diagonal
+reverse vertical
+color 3
+backet 19 19
+color 4
+backet 20 20

@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <math.h>
 
-#include "main.h"
+#include "paint4.h"
 #include "layer.c"
 
 int main(int argc, char **argv)
@@ -826,7 +826,6 @@ int read_layer_index(int default_value) {
 }
 
 void add_mark(Canvas *c) {
-  // 現在のカーソルの位置を保存する
   if (c->mark_len < 16) {
     c->marks[c->mark_len] = (Point){.x = c->cursorX, .y = c->cursorY};
     c->mark_len++;
