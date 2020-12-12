@@ -89,6 +89,7 @@ int draw_dot(Canvas *c, const int x, const int y); //(x, y)がキャンバス内
 void draw_line(Canvas *c, const int x0, const int y0, const int x1, const int y1);
 void draw_rect(Canvas *c, const int x0, const int y0, const int width, const int height, int fill);
 void draw_circle(Canvas *c, const int x0, const int y0, const int r, int fill);
+void draw_polygon(Canvas *c, int len, Point ps[], int fill);
 void copy_to_clipboard(Canvas *c, Clipboard *clip, int x0, int y0, int w, int h);
 void paste_from_clipboard(Canvas *c, Clipboard *clip, int x0, int y0);
 Clipboard *construct_clipboard();

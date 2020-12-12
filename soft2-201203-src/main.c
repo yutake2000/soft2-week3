@@ -505,10 +505,10 @@ void backet(Canvas *c, Layer *layer, int x0, int y0, int pen, int color, int bgc
 
 }
 
-void draw_polygon(Canvas *c, int len, int xs[], int ys[], int fill) {
+void draw_polygon(Canvas *c, int len, Point ps[], int fill) {
   
   for (int i=0; i<len; i++) {
-    draw_line(c, xs[i], ys[i], xs[(i+1)%len], ys[(i+1)%len]);
+    draw_line(c, ps[i].x, ps[i].y, ps[(i+1)%len].x, ps[(i+1)%len].y);
   }
 
   if (fill) {
@@ -522,10 +522,10 @@ void draw_polygon(Canvas *c, int len, int xs[], int ys[], int fill) {
         int count = 0;
         for (int i=0; i<len; i++) {
           // 座標(x, y)はマスの中央とする
-          double x1 = xs[i] + 0.5;
-          double x2 = xs[(i+1)%len] + 0.5;
-          double y1 = ys[i] + 0.5;
-          double y2 = ys[(i+1)%len] + 0.5;
+          double x1 = ps[i].x + 0.5;
+          double x2 = ps[(i+1)%len].x + 0.5;
+          double y1 = ps[i].y + 0.5;
+          double y2 = ps[(i+1)%len].y + 0.5;
 
           // 交わらない場合(水平な辺とは交わらない)
           if (y1 < y && y2 < y)
@@ -920,25 +920,28 @@ Result interpret_command(const char *command, History *his, Canvas *c)
   }
 
   if (strcmp(s, "polygon") == 0 || strcmp(s, "fillpolygon") == 0) {
-    int len;
-    int *args = read_int_arguments_flex(&len);
-    // 値2つで一つの座標を表すので奇数の場合はエラー
-    if (len == 0 || len % 2 == 1) {
-      return ERROR;
-    }
-
     int fill = (strcmp(s, "fillpolygon") == 0);
-    int *xs = (int*)malloc(sizeof(int)*(len/2));
-    int *ys = (int*)malloc(sizeof(int)*(len/2));
-    for (int i=0; i<len/2; i++) {
-      xs[i] = args[i*2];
-      ys[i] = args[i*2+1];
-    }
-    draw_polygon(c, len/2, xs, ys, fill);
 
-    free(args);
-    free(xs);
-    free(ys);
+    if (c->mark_len >= 2) {
+      add_mark(c);
+      draw_polygon(c, c->mark_len, c->marks, fill);
+      clear_mark(c);
+    } else {
+      int len;
+      int *args = read_int_arguments_flex(&len);
+      // 値2つで一つの座標を表すので奇数の場合はエラー
+      if (len == 0 || len % 2 == 1) {
+        return ERROR;
+      }
+
+      Point ps[len/2];
+      for (int i=0; i<len/2; i++) {
+        ps[i] = (Point){.x = args[i*2], .y = args[i*2+1]};
+      }
+      draw_polygon(c, len/2, ps, fill);
+
+      free(args);
+    }
     printf("1 polygon drawn\n");
     return NORMAL;
   }
