@@ -30,6 +30,9 @@ gcc paint4.c -o paint4 -lm
 - palletオプション
 	- これを入れるとキャンバスの右側にパレットが表示される
 	- colorコマンドでは色を数字で指定するので、このパレットに書かれて数字を使う
+- 終了する場合はプログラム中で`quit`と入力する
+
+<img width="100%" src="img/pallet.png">
 
 ## サンプル
 ```
@@ -37,7 +40,7 @@ gcc paint4.c -o paint4 -lm
 ```
 - 上のコマンドをターミナルで実行した後、下記のファイルを読み込むコマンドをプログラム中で入力する
 - animateコマンド実行後はEnterキーを押すごとにコマンドが1つずつ実行されていく(実際にはredoしている)
-- 1つのファイルが終了したら次のanimateコマンドを実行する
+- キャンバスがリセットされてから読み込まれるので、続けて別のanimateコマンドを実行しても問題ない
 
 ```
 animate sample/merge.txt
@@ -90,6 +93,9 @@ animate sample/yamaguchi.txt
 	- 山口県の県章
 	- カーソル操作を用いた
 	- 目印をつけておくことで描画コマンドで引数を省略できる
+
+<img width="40%" src="img/google_photo.png">
+<img width="40%" src="img/osaka.png">
 
 # コマンド一覧
 
