@@ -1,0 +1,11 @@
+resize 30 30
+aspect 2
+color 1
+fillcircle 0 0 30
+layer add
+color 2
+fillcircle 29 29 30
+layer clip
+eraser
+layer merge
+backet 0 0

@@ -15,8 +15,6 @@
 
 ## コンパイル
 ```
-gcc -o paint4 -lm paint4.c
-または
 gcc paint4.c -o paint4 -lm
 ```
 
@@ -25,7 +23,8 @@ gcc paint4.c -o paint4 -lm
 ./paint4 <width> <height> [pallet]
 
 例:
-./paint4 40 40 pallet
+./paint4 40 40
+./paint4 100 40 pallet
 ```
 - サンプルは基本40×40マスを想定している
 - palletオプション
@@ -42,6 +41,7 @@ gcc paint4.c -o paint4 -lm
 
 ```
 animate sample/merge.txt
+animate sample/chuju.txt
 animate sample/emblem.txt
 animate sample/osaka.txt
 animate sample/osaka_cursor.txt
@@ -52,48 +52,62 @@ animate sample/google_play.txt
 animate sample/google_play2.txt
 animate sample/yamaguchi.txt
 ```
-### sample/merge.txt
-- 普通のペンとマーカーの重なり方やレイヤーの重なり方がわかるサンプル
+- sample/merge.txt
+	- 楽書き
+	- 普通のペンとマーカーの重なり方やレイヤーの重なり方がわかるサンプル
 
-### sample/emblem.txt
-- クリッピングのサンプル
+- sample/chuju.txt
+	- クリッピングのサンプル
 
-### osaka.txt
-- 大阪大学のロゴ
-- 円描画とレイヤーの移動・反転機能を主に使った
+- sample/emblem.txt
+	- クリッピングのサンプル
 
-### osaka_cursor.txt
-- カーソルで3点を指定して、そこを通る弧の描画のみで作った
-- カーソルはコマンドで動かしている
+- osaka.txt
+	- 大阪大学のロゴ
+	- 円描画とレイヤーの移動・反転機能を主に使った
 
-### nagasaki.txt
-- 長崎大学の略式ロゴ
-- 使った機能はosaka.txtとほぼ同じ
+- osaka_cursor.txt
+	- カーソルで3点を指定して、そこを通る弧の描画のみで作った
+	- カーソルはコマンドで動かしている
 
-### google_photo_backet.txt
-- レイヤーの反転とバケツ機能を主に使っている
+- nagasaki.txt
+	- 長崎大学の略式ロゴ
+	- 使った機能はosaka.txtとほぼ同じ
 
-### sample/google_photo_clip.txt
-- バケツ機能の代わりにクリッピングを利用して色をつけた
+- google_photo_backet.txt
+	- レイヤーの反転とバケツ機能を主に使っている
 
-### sample/google_play.txt
-- 多角形描画を使った
+- sample/google_photo_clip.txt
+	- バケツ機能の代わりにクリッピングを利用して色をつけた
 
-### sample/google_play2.txt
-- マーカーを使ったバージョン
+- sample/google_play.txt
+	- 多角形描画を使った
 
-### sample/yamaguchi.txt
-- 山口県の県章
-- カーソル操作を用いた
-- 目印をつけておくことで描画コマンドで引数を省略できる
+- sample/google_play2.txt
+	- マーカーを使ったバージョン
+
+- sample/yamaguchi.txt
+	- 山口県の県章
+	- カーソル操作を用いた
+	- 目印をつけておくことで描画コマンドで引数を省略できる
 
 # コマンド一覧
 
-## 描画
+## コマンドの見方
+|括弧|意味|コマンド表記例|コマンド入力例|
+|-|-|-|-|
+|なし|書いてある文字列をそのまま入力する。|`undo`|`undo`|
+|山括弧<br><>|適切な値(整数または文字列)を入れる。|`chpen <pen>`|`chpen #`<br>`chpen *`|
+|角括弧<br>[]|オプション。必須ではない。|`backet <x> <y> [strict]`|`backet 3 14`<br>`backet 15 9 strict`|
+|丸括弧<br>()|縦棒(\|)で区切られた文字列の<br>どれか1つを指定する。|`reverse (h \| v \| d)`|`reverse h`<br>`reverse d`|
+
+## 図形
 ```
 line <x0> <y0> <x1> <y1>
+例: line 5 10 15 20
 ```
-- (x0, y0)から(x1, y1)まで線分を描画する
+- (x0, y0)と(x1, y1)を端点とする線分を描画する
+- 例では(5, 10)と(15, 20)を端点とする線分を描画する。
 
 ```
 rect <x0> <y0> <width> <height>
@@ -111,47 +125,55 @@ fillcircle <x0> <y0> <r>
 ```
 sector <x0> <y0> <r> <θ1> <θ2>
 fillsector <x0> <y0> <r> <θ1> <θ2>
+例:
+sector 20 20 10 -120 -60
+sector 20 20 10 240 300
+fillsector 0 0 40 -60 -30
 ```
 - (x0, y0)を中心とする半径r, 角度θ1からθ2までの弧を描画する
-- θ1・θ2はx軸方向を0度とした反時計周りの角度
+- θ1・θ2はx軸方向を0度とした反時計周りの角度(-90度以上)
 - arcとsectorのような気もするが、他のコマンドと合わせた
 
 ```
 polygon <x0> <y0> <x1> <y1> ...
 fillpolygon <x0> <y0> <x1> <y1> ...
 ```
-- (x0, y0), (x1, y1), ... (xn, yn)を頂点とする多角形を描画する
+- (x0, y0), (x1, y1), ... を頂点とする多角形を描画する
 
 ## ツール
 ```
 chpen <pen>
 ```
-- ペンをpen(1文字)に変更する
+- ペンをpen(半角1文字)に変更する
+- デフォルトは「\*」
 
 ```
 color <color code>
 ```
 - 色を変更する(0 - 255)
+- プログラム実行時に`./paint4 40 40 pallet`のようにpalletオプションをつけるとカラーコードを見ることができる
 
 
 ```
 marker
 ```
 - ペンをマーカーに変更する
+- 普通のペン(文字)で描いた部分は上書きするが、逆にこの上にペンを重ねて描くことはできる(sample/merge.txt参照)
 - 戻す場合はchpenコマンドを用いる
-
-```
-pensize <size>
-```
-- ペンの太さを変更する
-- デフォルトは1
-- 線や多角形の場合は(2 * size + 1)ピクセル、円の場合はsizeピクセル程度になる
 
 ```
 eraser
 ```
 - ペンを消しゴムに変更する
 - 戻す場合はchpenコマンドを用いる
+
+
+```
+pensize <size>
+```
+- ペンの太さをsize(整数)に変更する
+- デフォルトは1
+- 線や多角形の場合は(2 * size + 1)ピクセル、円の場合はsizeピクセル程度の太さになる
 
 ```
 backet <x> <y> [strict]
@@ -248,6 +270,7 @@ layer (clip|unclip) [<index>]
 - クリッピングすると、下のレイヤーで何も書かれていない部分は表示されなくなる
 - 1つのレイヤーに複数のレイヤーをクリッピングすることも可能
 - レイヤー1-3のうちレイヤー2,3がクリッピングされている場合、レイヤー1に何も書かれていない部分はレイヤー2,3で表示されなくなる
+- sample/chuju.txt参照
 
 ## キャンバス操作
 
@@ -259,7 +282,7 @@ resize <width> <height>
 ```
 aspect <ratio>
 ```
-- アスペクト比を変更する
+- 幅をratio倍に拡大する
 - デフォルトは1
 - 2にすると幅と高さが大体同じになり、円が真円のように見える
 
@@ -317,23 +340,41 @@ chide
 ```
 - カーソルを非表示にする
 
-# ポイント
+### 操作方法
+- コマンドでカーソルを移動させることができる
+- カーソルを移動させながらマークすることで図形描画に利用できる
+	- 線を引く場合
+		- csetとcmvでカーソルを引きたい線分の一端におく
+		- cmarkで目印を置く
+		- csetとcmvでもう一端に移動
+		- line
+	- 四角を描く場合
+		- csetとcmvでカーソルを描きたい四角の左上に移動
+		- cmarkで目印を置く
+		- csetとcmvで四角の右下に移動
+		- rect または fillrect
+	- 円を描く場合(中心と半径を指定)
+		- csetとcmvでカーソルを描きたい円の中心に移動
+		- cmarkで目印を置く
+		- csetとcmvで半径分移動する
+		- circle または fillcircle
+	- 円を描く場合(3点を通る円)
+		- csetとcmvでカーソルを描きたい円の円周(どこでもよい)に移動
+		- cmark
+		- 同様に、もう一点cset, cmv, cmarkで目印を置く
+		- さらに別の点にカーソルを移動させる
+		- circle または fillcircle
+	- 弧、または扇型を描く場合(3点を通る弧)
+		- cset, cmv, cmarkで1点目(端)に目印を置く
+		- 同様に2点目(端)に目印を置く
+		- カーソルをマークした2点の間あたりにおく
+		- sector または fillsector
+- sample/yamaguchi.txt, sample/osaka_cursorで使われている
+
+# プログラムについて
 - レイヤー
 	- レイヤーのリストは両方向連結リストで管理している
 		- ただし、コーディングのしやすさからget_layerを使うことが多くprevは全く役に立っていない
 		- get_layerをループ中に使うと実行時間がO(N^2)になるが、 Nは十分に小さいので今回は気にしていない
 - 多角形
 	- 内側を塗りつぶすとき多角形の内部かどうかの判定には[Crossing Number Algorithm](https://www.nttpc.co.jp/technology/number_algorithm.html)を用いた
-- 右側のコマンド履歴
-	- undoしたコマンドも表示されるので、座標を失敗した場合などに取り消したコマンドを見ながら入力できる
-- カーソル
-	- コマンドでカーソルを移動させることができる
-	- カーソルを移動させながらマークすることで図形描画に利用できる(すべて引数なし)
-		- 線を引く場合: 一箇所マーク、カーソルを移動、line
-		- 四角を描く場合: 四角の左上隅にしたい場所をマーク、カーソルを四角の右下隅にしたい場所に移動、rect または fillrect
-		- 円を描く場合(中心と半径): 円の中心をマーク、カーソルを半径分だけずらす、circle または fillcircle
-		- 円を描く場合(3点を通る円): 1点目をマーク、2点目をマーク、カーソルをずらす、circle または fillcircle
-		- 弧、または扇型を描く場合: 1点目(端)をマーク、2点目(端)をマーク、カーソルをマークした2点の間あたりにおく、sector または fillsector
-	- sample/yamaguchi.txt, sample/osaka_cursorで使われている
-
-
