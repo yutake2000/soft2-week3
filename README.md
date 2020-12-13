@@ -94,8 +94,9 @@ animate sample/yamaguchi.txt
 	- カーソル操作を用いた
 	- 目印をつけておくことで描画コマンドで引数を省略できる
 
-<img width="40%" src="img/google_photo.png">
-<img width="40%" src="img/osaka.png">
+|sample/google_photo_backet.txt|sample/osaka.txt|
+|-|-|
+|<img src="img/google_photo.png">|<img src="img/osaka.png">|
 
 # コマンド一覧
 
@@ -145,6 +146,8 @@ polygon <x0> <y0> <x1> <y1> ...
 fillpolygon <x0> <y0> <x1> <y1> ...
 ```
 - (x0, y0), (x1, y1), ... を頂点とする多角形を描画する
+
+<img src="img/shapes.png">
 
 ## ツール
 ```
